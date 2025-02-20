@@ -76,10 +76,10 @@ class MessageScreen extends StatefulWidget {
       this.pipelineId,
       this.location,
       this.userName,
-this.messageToken,
-this.chatId,
-this.name,
-this.pic,
+      this.messageToken,
+      this.chatId,
+      this.name,
+      this.pic,
       this.labels});
 
   @override
@@ -117,41 +117,42 @@ class _MessageScreenState extends State<MessageScreen> {
   String nextMessageToken = '';
   String conversationId = "";
   UploadTask? uploadTask;
-  final ScrollController _scrollController = ScrollController();
+  late ScrollController _scrollController = ScrollController();
   final picker = ImagePicker();
   PlatformFile? pickedFile;
   VideoPlayerController? _controller;
   List<dynamic> pipelines = [];
   List<dynamic> opp = [];
- Map<String, dynamic> contactDetails = {};
-List<dynamic> tags =[];
+  Map<String, dynamic> contactDetails = {};
+  List<dynamic> tags =[];
   Map<String, Uint8List?> _pdfCache = {};
-    bool isDarkMode = false;
-StreamSubscription<RemoteMessage>? _notificationSubscription;
+  bool isDarkMode = false;
+  StreamSubscription<RemoteMessage>? _notificationSubscription;
   Map<String, dynamic>? replyToMessage;
   List<Map<String, dynamic>> quickReplies = [];
   bool showQuickReplies = false;
   OverlayEntry? _overlayEntry;
   bool showScrollToTop = false;
- final AudioPlayer _audioPlayer = AudioPlayer();
+  final AudioPlayer _audioPlayer = AudioPlayer();
   // Cache for decoded images
   final Map<String, Uint8List> _imageCache = {};
-bool _isPlaying = false;
-Duration _duration = Duration.zero;
-Duration _position = Duration.zero;
+  bool _isPlaying = false;
+  Duration _duration = Duration.zero;
+  Duration _position = Duration.zero;
 
 
-// Add this to your class state variables
-String? highlightedMessageBody;
-final GlobalKey _messageKey = GlobalKey();
-final ItemScrollController _itemScrollController = ItemScrollController(); // For ScrollablePositionedList
-final ItemPositionsListener _itemPositionsListener = ItemPositionsListener.create();
-bool isManualScrollingToTop = false;
+  // Add this to your class state variables
+  String? highlightedMessageBody;
+  final GlobalKey _messageKey = GlobalKey();
+  final ItemScrollController _itemScrollController = ItemScrollController();
+  final ItemPositionsListener _itemPositionsListener = ItemPositionsListener.create();
+  bool isManualScrollingToTop = false;
+  bool _isLoadingMore = false;
 
-// Add these variables to your state
+  // Add these variables to your state
 
-String selectedCategory = 'All';
-String searchQuery = '';
+  String selectedCategory = 'All';
+  String searchQuery = '';
 
   @override
   void initState() {
@@ -166,35 +167,35 @@ String searchQuery = '';
           : (b['timestamp'] as Timestamp).millisecondsSinceEpoch ~/ 1000;
       return timestampB.compareTo(timestampA); // For reverse chronological order
     });
-     loadDarkModePreference();
+    loadDarkModePreference();
     listenNotification();
-      fetchCategories();
-       if (widget.tags != null && widget.tags!.contains('stop bot')) {
-  stopBot = true;
-}
-  // Replace old scroll listener with ItemPositionsListener
-_itemPositionsListener.itemPositions.addListener(() {
-  final positions = _itemPositionsListener.itemPositions.value;
-  
-  if (positions.isEmpty) return;
+    fetchCategories();
+    if (widget.tags != null && widget.tags!.contains('stop bot')) {
+      stopBot = true;
+    }
+    // Replace old scroll listener with ItemPositionsListener
+    _itemPositionsListener.itemPositions.addListener(() {
+      final positions = _itemPositionsListener.itemPositions.value;
+        
+      if (positions.isEmpty) return;
 
-  // Get the last visible item index
-  final lastIndex = positions.last.index;
-  // Get the first visible item index
-  final firstIndex = positions.first.index;
-  
-  // Only load more messages if we're not manually scrolling to top
-  if (lastIndex >= widget.messages.length - 20 && !isManualScrollingToTop) {
+      // Get the last visible item index
+      final lastIndex = positions.last.index;
+      // Get the first visible item index
+      final firstIndex = positions.first.index;
+      
+      // Only load more messages if we're not manually scrolling to top
+      if (lastIndex >= widget.messages.length - 20 && !isManualScrollingToTop) {
 
-    loadMoreMessages();
-  }
-  
-  // Show/hide scroll to top button based on position
-  setState(() {
-    showScrollToTop = firstIndex > 3 && 
-                     firstIndex < widget.messages.length - 2;
-  });
-});
+        loadMoreMessages();
+      }
+    
+      // Show/hide scroll to top button based on position
+      setState(() {
+        showScrollToTop = firstIndex > 3 && 
+        firstIndex < widget.messages.length - 2;
+      });
+    });
 
     _messageController.addListener(() {
       String value = _messageController.text;
@@ -219,27 +220,29 @@ _itemPositionsListener.itemPositions.addListener(() {
     });
     fetchQuickReplies();
       _audioPlayer.durationStream.listen((Duration? duration) {
-    if (duration != null) {
-      setState(() {
-        _duration = duration;
-      });
-    }
-  });
-
-  _audioPlayer.positionStream.listen((Duration position) {
-    setState(() {
-      _position = position;
+        if (duration != null) {
+          setState(() {
+            _duration = duration;
+          });
+        }
     });
-  });
 
-  _audioPlayer.playerStateStream.listen((PlayerState state) {
-    if (state.processingState == ProcessingState.completed) {
+    _audioPlayer.positionStream.listen((Duration position) {
       setState(() {
-        _isPlaying = false;
-        _position = Duration.zero;
+        _position = position;
       });
-    }
-  });
+    });
+
+    _audioPlayer.playerStateStream.listen((PlayerState state) {
+      if (state.processingState == ProcessingState.completed) {
+        setState(() {
+          _isPlaying = false;
+          _position = Duration.zero;
+        });
+      }
+    });
+    _scrollController = ScrollController();
+    _scrollController.addListener(_scrollListener);
   }
 
   Future<void> loadDarkModePreference() async {
@@ -249,12 +252,70 @@ _itemPositionsListener.itemPositions.addListener(() {
     });
   }
   void _scrollListener() {
-  if (_scrollController.offset >= _scrollController.position.maxScrollExtent &&
-      !_scrollController.position.outOfRange) {
-        showToast("Fetching more data...");
-    loadMoreMessages();
+    if (_scrollController.offset <= _scrollController.position.minScrollExtent &&
+        !_scrollController.position.outOfRange) {
+      _loadMoreMessages();
+    }
   }
-}
+
+
+Future<void> _loadMoreMessages() async {
+    if (!_isLoadingMore) {
+      setState(() {
+        _isLoadingMore = true;
+      });
+
+      try {
+        int oldestTimestamp = widget.messages.last['timestamp'];
+        
+        QuerySnapshot messagesSnapshot = await FirebaseFirestore.instance
+            .collection('companies')
+            .doc(widget.companyId)
+            .collection('contacts')
+            .doc(widget.contactId)
+            .collection('messages')
+            .orderBy('timestamp', descending: true)
+            .where('timestamp', isLessThan: oldestTimestamp)
+            .limit(50)
+            .get();
+
+        List<Map<String, dynamic>> newMessages = messagesSnapshot.docs
+            .map((doc) => doc.data() as Map<String, dynamic>)
+            .where((message) {
+              String type = message['type'] ?? '';
+              bool validType = type != 'action' && 
+                             type != 'e2e_notification' && 
+                             type != 'notification_template';
+
+              bool validPhoneIndex = true;
+              if (widget.phoneIndex != null) {
+                if (message['phoneIndexes'] != null && message['phoneIndexes'] is List) {
+                  validPhoneIndex = message['phoneIndexes'].contains(widget.phoneIndex);
+                } 
+                else if (message['phoneIndex'] != null) {
+                  validPhoneIndex = message['phoneIndex'] == widget.phoneIndex;
+                }
+              }
+
+              return validType && validPhoneIndex;
+            })
+            .toList();
+
+        setState(() {
+          widget.messages.addAll(newMessages);
+          _isLoadingMore = false;
+        });
+
+        print('Loaded ${newMessages.length} more messages. Total: ${widget.messages.length}');
+      } catch (e) {
+        print('Error loading more messages: $e');
+        setState(() {
+          _isLoadingMore = false;
+        });
+      }
+    }
+  }
+
 Future<void> listenNotification() async {
     _notificationSubscription = FirebaseMessaging.onMessage.listen((RemoteMessage message) async {
       try {
@@ -392,18 +453,22 @@ Future<dynamic> getContact(String number) async {
 
 Future<void> sendImageMessage(String to, PlatformFile imageFile, String caption) async {
   if (imageFile.path == null) {
+    print('Image file path is null');
     return;
   }
-  // Fix: Use imageFile instead of pickedFile and add null safety checks
+
   String messageType = (imageFile.extension?.toLowerCase() == 'mov') ? 'video' : 'image';
   setState(() {
     pickedFile = null;
     _messageController.clear();
   });
+
   try {
     // Upload the image to Firebase Storage and get the URL
     String imageUrl = await uploadImageToFirebaseStorage(imageFile);
-   // Convert image to base64 first
+    print('Image uploaded to: $imageUrl');
+
+    // Convert image to base64
     final imageBytes = await File(imageFile.path!).readAsBytes();
     String base64Image = base64Encode(imageBytes);
 
@@ -430,6 +495,7 @@ Future<void> sendImageMessage(String to, PlatformFile imageFile, String caption)
     // Fetch the current user
     User? user = FirebaseAuth.instance.currentUser;
     if (user == null) {
+      print('User not logged in');
       return;
     }
 
@@ -440,6 +506,7 @@ Future<void> sendImageMessage(String to, PlatformFile imageFile, String caption)
         .get();
 
     if (!userSnapshot.exists) {
+      print('User document does not exist');
       return;
     }
 
@@ -454,6 +521,7 @@ Future<void> sendImageMessage(String to, PlatformFile imageFile, String caption)
         .get();
 
     if (!companySnapshot.exists) {
+      print('Company document does not exist');
       return;
     }
 
@@ -479,15 +547,120 @@ Future<void> sendImageMessage(String to, PlatformFile imageFile, String caption)
     );
 
     if (response.statusCode == 200) {
-      //final response2 = await http.get(Uri.parse(imageUrl));
-    
+      print('Image message sent successfully');
     } else {
-      // Handle error
+      print('Error sending image: ${response.statusCode}');
     }
   } catch (e) {
-    // Handle exception
+    print('Exception in sendImageMessage: $e');
   }
 }
+
+Future<void> sendVideoMessage(String to, PlatformFile videoFile, String caption) async {
+  if (videoFile.path == null) {
+    print('Video file path is null');
+    return;
+  }
+
+  setState(() {
+    pickedFile = null;
+    _messageController.clear();
+  });
+
+  try {
+    // Upload the video to Firebase Storage and get the URL
+    String videoUrl = await uploadVideoToFirebaseStorage(videoFile);
+    print('Video uploaded to: $videoUrl');
+
+    // Create and insert the new message object immediately
+    Map<String, dynamic> newMessage = {
+      'type': 'video',
+      'from_me': true,
+      'video': {
+        'url': videoUrl,
+      },
+      'caption': caption,
+      'timestamp': DateTime.now().millisecondsSinceEpoch ~/ 1000,
+      'chat_id': widget.chatId,
+      'direction': 'outgoing',
+    };
+
+    // Update UI immediately
+    setState(() {
+      widget.messages.insert(0, newMessage);
+      pickedFile = null;
+      _messageController.clear();
+    });
+
+    // Fetch the current user
+    User? user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      print('User not logged in');
+      return;
+    }
+
+    // Fetch user document from Firestore
+    DocumentSnapshot userSnapshot = await FirebaseFirestore.instance
+        .collection('user')
+        .doc(user.email)
+        .get();
+
+    if (!userSnapshot.exists) {
+      print('User document does not exist');
+      return;
+    }
+
+    // Extract companyId from user data
+    Map<String, dynamic> userData = userSnapshot.data() as Map<String, dynamic>;
+    String companyId = userData['companyId'];
+
+    // Fetch company document from Firestore
+    DocumentSnapshot companySnapshot = await FirebaseFirestore.instance
+        .collection('companies')
+        .doc(companyId)
+        .get();
+
+    if (!companySnapshot.exists) {
+      print('Company document does not exist');
+      return;
+    }
+
+    // Extract apiUrl from company data
+    Map<String, dynamic> companyData = companySnapshot.data() as Map<String, dynamic>;
+    String baseUrl = companyData['apiUrl'] ?? 'https://mighty-dane-newly.ngrok-free.app';
+
+    // Construct the request URL
+    String url = '$baseUrl/api/v2/messages/video/${widget.companyId}/${widget.chatId}';
+    var body = json.encode({
+      'videoUrl': videoUrl,
+      'caption': caption,
+      'phoneIndex': widget.phoneIndex,
+      'userName': widget.userName,
+    });
+
+    var response = await http.post(
+      Uri.parse(url),
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: body,
+    );
+
+    if (response.statusCode == 200) {
+      var responseData = json.decode(response.body);
+      if (responseData['success'] == true) {
+        print('Video message sent successfully with ID: ${responseData['messageId']}');
+      } else {
+        print('Failed to send video message');
+      }
+    } else {
+      print('Error sending video: ${response.statusCode}');
+    }
+  } catch (e) {
+    print('Exception in sendVideoMessage: $e');
+  }
+}
+
 Future<void> sendDocumentMessage(String to, PlatformFile documentFile, String caption) async {
   if (documentFile.path == null) {
     return;
@@ -622,6 +795,25 @@ Future<String> uploadImageToFirebaseStorage(PlatformFile imageFile) async {
   }
 }
 
+Future<String> uploadVideoToFirebaseStorage(PlatformFile videoFile) async {
+  try {
+    // Create a reference to the location you want to upload to in Firebase Storage
+    String fileName = DateTime.now().millisecondsSinceEpoch.toString() + '_' + videoFile.name;
+    Reference ref = FirebaseStorage.instance.ref().child('chat_videos').child(fileName);
+
+    // Upload the file to Firebase Storage
+    UploadTask uploadTask = ref.putFile(File(videoFile.path!));
+
+    // Wait for the upload to complete and get the download URL
+    TaskSnapshot taskSnapshot = await uploadTask;
+    String downloadUrl = await taskSnapshot.ref.getDownloadURL();
+
+    return downloadUrl;
+  } catch (e) {
+    rethrow;
+  }
+}
+
 
   Future<void> updateStopBotStatus(String companyId, String contactId, bool stopBot) async {
     await FirebaseFirestore.instance
@@ -655,6 +847,8 @@ Future<String> uploadImageToFirebaseStorage(PlatformFile imageFile) async {
     _controller?.dispose();
     _notificationSubscription?.cancel(); // Cancel the subscription
     _audioPlayer.dispose();
+    _scrollController.removeListener(_scrollListener);
+    _scrollController.dispose();
     super.dispose();
   }
     Future<void> _openInGoogleMaps(String latitude, String longitude) async {
@@ -1133,59 +1327,71 @@ case 'privateNote':
     );
     break;
     
-          case 'document':
-           
-              messageWidget = Stack(
-                children: [
-                  Container(
-                    
-                    child: GestureDetector(
-                      onTap: () => _openDocument(context, message['document']),
-                      child: Container(
-                        padding: EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                     color: isSent ? CupertinoColors.systemBlue : colorScheme.onBackground,
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Row(
-                          children: [
-                            Icon(Icons.description, size: 40,color: Colors.white),
-                            SizedBox(width: 12),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    message['document']['filename'] ?? 'Document',
-                                    style: TextStyle(fontWeight: FontWeight.bold,color: Colors.white ),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                  if (message['document']['fileSize'] != null)
-                                    Text(
-                                      '${(message['document']['fileSize'] / 1024).toStringAsFixed(1)} KB',
-                                      style: TextStyle(fontSize: 12, color: const Color.fromARGB(255, 255, 255, 255)),
+                    case 'document':
+                      messageWidget = Stack(
+                        children: [
+                          Container(
+                            
+                            child: GestureDetector(
+                              onTap: () => _openDocument(context, message['document']),
+                              child: Container(
+                                padding: EdgeInsets.all(12),
+                                decoration: BoxDecoration(
+                            color: isSent ? CupertinoColors.systemBlue : colorScheme.onBackground,
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Row(
+                                      children: [
+                                        Icon(Icons.description, size: 40, color: Colors.white),
+                                        SizedBox(width: 12),
+                                        Expanded(
+                                          child: Column(
+                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            children: [
+                                              Text(
+                                                message['document']['filename'] ?? 'Document',
+                                                style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
+                                                maxLines: 1,
+                                                overflow: TextOverflow.ellipsis,
+                                              ),
+                                              if (message['document']['fileSize'] != null)
+                                                Text(
+                                                  '${(message['document']['fileSize'] / 1024).toStringAsFixed(1)} KB',
+                                                  style: TextStyle(fontSize: 12, color: const Color.fromARGB(255, 255, 255, 255)),
+                                                ),
+                                            ],
+                                          ),
+                                        ),
+                                      ],
                                     ),
-                                ],
+                                    if (message['document']['caption'] != null && message['document']['caption'].isNotEmpty)
+                                      Padding(
+                                        padding: EdgeInsets.only(top: 8.0),
+                                        child: Text(
+                                          message['document']['caption'],
+                                          style: TextStyle(color: Colors.white, fontSize: 14),
+                                        ),
+                                      ),
+                                  ],
+                                ),
                               ),
                             ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                        Positioned(
-                            bottom:5,
+                          ),
+                          Positioned(
+                            bottom: 5,
                             right: 15,
                             child: Text(
                               formattedTime,
                               style: TextStyle(fontSize: 12, color: const Color.fromARGB(255, 255, 255, 255)),
                             ),
                           ),
-                ],
-              );
-           
-            break;
+                        ],
+                      );
+                  
+                    break;
 
           case 'image':
             if (message['image']['data'] != null) {
@@ -1789,12 +1995,39 @@ Stack(
                                 widget.chatId!, _messageController.text);
                               _messageController.clear();    
                           } else {
-                          if (pickedFile!.extension?.toLowerCase() == 'pdf') {
-                            print(pickedFile);
-    await sendDocumentMessage(widget.conversation['id'], pickedFile!, _messageController.text);
-  } else {
-    await sendImageMessage(widget.conversation['id'], pickedFile!, _messageController.text);
-  }
+                            if (pickedFile != null) {
+                              final extension = pickedFile!.extension?.toLowerCase();
+
+                              if (extension == 'pdf' || extension == 'doc' || extension == 'docx' || extension == 'xls' || extension == 'xlsx') {
+                                print('Document sent');
+                                await sendDocumentMessage(widget.conversation['id'], pickedFile!, _messageController.text);
+                              } else if (extension == 'mov' || extension == 'mp4' || extension == 'avi' || extension == 'mkv') {
+                                print('Video sent');
+                                await sendVideoMessage(widget.conversation['id'], pickedFile!, _messageController.text);
+                              } else if (extension == 'jpg' || extension == 'jpeg' || extension == 'png' || extension == 'gif') {
+                                print('Image sent');
+                                await sendImageMessage(widget.conversation['id'], pickedFile!, _messageController.text);
+                              } else {
+                                // Show unsupported format dialog
+                                showDialog(
+                                  context: context,
+                                  builder: (BuildContext context) {
+                                    return AlertDialog(
+                                      title: Text('Unsupported Format'),
+                                      content: Text('The format of the item is unsupported.'),
+                                      actions: <Widget>[
+                                        TextButton(
+                                          child: Text('OK'),
+                                          onPressed: () {
+                                            Navigator.of(context).pop();
+                                          },
+                                        ),
+                                      ],
+                                    );
+                                  },
+                                );
+                              }
+                            }
                           }
                         },
                         onTap: () {
@@ -2554,13 +2787,32 @@ Future<void> fetchCategories() async {
 
 void _showQuickRepliesOverlay() {
   _hideQuickRepliesOverlay();
-  late void Function() rebuildOverlay;
+  
+  final TextEditingController searchController = TextEditingController();
+  List<Map<String, dynamic>> filteredReplies = List.from(quickReplies);
 
-  void _buildAndShowOverlay() {
-    _overlayEntry = OverlayEntry(
-      builder: (context) => Stack(
+  // Set the default category to 'All' whenever the overlay is opened
+  setState(() {
+    selectedCategory = 'All';
+  });
+
+  void updateFilteredReplies() {
+    filteredReplies = getFilteredQuickReplies(searchController.text);
+    _overlayEntry?.markNeedsBuild();
+  }
+
+  searchController.addListener(updateFilteredReplies);
+
+  _overlayEntry = OverlayEntry(
+    builder: (context) => PopScope(
+      canPop: true, // Allow pop
+      onPopInvokedWithResult: (didPop, result) async {
+        if (didPop) {
+          _hideQuickRepliesOverlay(); // Close the overlay
+        }
+      },
+      child: Stack(
         children: [
-          // Backdrop
           Positioned.fill(
             child: GestureDetector(
               onTap: _hideQuickRepliesOverlay,
@@ -2570,8 +2822,6 @@ void _showQuickRepliesOverlay() {
               ),
             ),
           ),
-          
-          // Main Content
           Positioned(
             top: MediaQuery.of(context).viewPadding.top + 10,
             bottom: MediaQuery.of(context).viewInsets.bottom + 20,
@@ -2594,7 +2844,6 @@ void _showQuickRepliesOverlay() {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    // Header
                     Padding(
                       padding: EdgeInsets.all(16),
                       child: Row(
@@ -2616,15 +2865,10 @@ void _showQuickRepliesOverlay() {
                         ],
                       ),
                     ),
-
-                    // Search Bar
                     Padding(
                       padding: EdgeInsets.symmetric(horizontal: 16),
                       child: TextField(
-                        onChanged: (value) {
-                          searchQuery = value;
-                          rebuildOverlay();
-                        },
+                        controller: searchController,
                         decoration: InputDecoration(
                           hintText: 'Search quick replies...',
                           prefixIcon: Icon(Icons.search),
@@ -2637,8 +2881,6 @@ void _showQuickRepliesOverlay() {
                         ),
                       ),
                     ),
-
-                    // Categories
                     Container(
                       height: 50,
                       margin: EdgeInsets.symmetric(vertical: 8),
@@ -2655,8 +2897,10 @@ void _showQuickRepliesOverlay() {
                               selected: isSelected,
                               label: Text(category),
                               onSelected: (selected) {
-                                selectedCategory = category;
-                                rebuildOverlay();
+                                setState(() {
+                                  selectedCategory = category;
+                                  updateFilteredReplies();
+                                });
                               },
                               backgroundColor: isDarkMode ? Colors.grey[800] : Colors.grey[200],
                               selectedColor: Colors.blue,
@@ -2668,13 +2912,11 @@ void _showQuickRepliesOverlay() {
                         },
                       ),
                     ),
-
-                    // Quick Replies List
                     Expanded(
                       child: ListView.builder(
-                        itemCount: getFilteredQuickReplies().length,
+                        itemCount: filteredReplies.length,
                         itemBuilder: (context, index) {
-                          final reply = getFilteredQuickReplies()[index];
+                          final reply = filteredReplies[index];
                           return QuickReplyTile(
                             reply: reply,
                             isDarkMode: isDarkMode,
@@ -2690,22 +2932,14 @@ void _showQuickRepliesOverlay() {
           ),
         ],
       ),
-    );
+    ),
+  );
 
-    Overlay.of(context).insert(_overlayEntry!);
-  }
-
-  rebuildOverlay = () {
-    _overlayEntry?.remove();
-    _buildAndShowOverlay();
-  };
-
-  // Initial build of the overlay
-  _buildAndShowOverlay();
+  Overlay.of(context).insert(_overlayEntry!);
 }
 
-// Helper method to get filtered quick replies
-List<Map<String, dynamic>> getFilteredQuickReplies() {
+// Update the getFilteredQuickReplies method to accept a search query parameter
+List<Map<String, dynamic>> getFilteredQuickReplies(String searchQuery) {
   return quickReplies.where((reply) {
     final matchesSearch = searchQuery.isEmpty ||
         reply['keyword'].toString().toLowerCase().contains(searchQuery.toLowerCase()) ||

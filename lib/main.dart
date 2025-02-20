@@ -19,19 +19,18 @@ Future<void> main() async {
     statusBarIconBrightness: Brightness.dark,
   ));
 
-  // TODO: Push Notification
-  // // Firebase Cloud Messaging (FCM)
-
   WidgetsFlutterBinding.ensureInitialized();
-    //await NotificationService().init();
   await Firebase.initializeApp(
-      options: FirebaseOptions(
-          apiKey: "AIzaSyCFlkTGPLX5ir9nYOJQqf9ypE_k3JeIDy0",
-          projectId: "onboarding-a5fcb",
-          messagingSenderId: "334607574757",
-          appId: "1:334607574757:android:9aa9e893edfa28ec87960c"));
-            await FirebaseMessaging.instance.requestPermission(alert: true, badge: true, sound: true, provisional: false);
-  await FirebaseMessaging.instance.setForegroundNotificationPresentationOptions(alert: true,badge: true,sound: true,);
+    options: FirebaseOptions(
+      apiKey: "AIzaSyCFlkTGPLX5ir9nYOJQqf9ypE_k3JeIDy0",
+      projectId: "onboarding-a5fcb",
+      messagingSenderId: "334607574757",
+      appId: "1:334607574757:android:9aa9e893edfa28ec87960c",
+      storageBucket: "gs://onboarding-a5fcb.appspot.com",
+    ),
+  );
+  await FirebaseMessaging.instance.requestPermission(alert: true, badge: true, sound: true, provisional: false);
+  await FirebaseMessaging.instance.setForegroundNotificationPresentationOptions(alert: true, badge: true, sound: true);
   FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
   runApp(const MyApp());
 }

@@ -638,27 +638,28 @@ bool searchInMessages(String contactId, String searchTerm) {
 Future<void> _showAddTagDialog(Map<String, dynamic> conversation, ColorScheme colorScheme) async {
   List<String> specialTags = ['Mine', 'All', 'Unassigned', 'Group', 'Unread'];
   List<dynamic> allTags = availableTags.where((tag) => !specialTags.contains(tag)).toList();
-  
-  // Initialize selectedTags and selectedEmployees from existing tags
+
   List<String> selectedTags = [];
   List<String> employeeTags = [];
-  
-  // Separate existing tags into regular tags and employee tags
-  List<String> existingTags = List<String>.from(conversation['tags'] ?? []);
-selectedTags.addAll(existingTags);
-print(existingTags);
-  String newTag = '';
-    QuerySnapshot employeeSnapshot = await FirebaseFirestore.instance
-        .collection('companies')
-        .doc(companyId)
-        .collection('employee')
-        .get();
 
-    // Add employee names
-    for (var doc in employeeSnapshot.docs) {
-      String employeeName = doc.get('name');
-      employeeTags.add(employeeName);
-    }
+  List<String> existingTags = List<String>.from(conversation['tags'] ?? []);
+  selectedTags.addAll(existingTags);
+  String newTag = '';
+
+  QuerySnapshot employeeSnapshot = await FirebaseFirestore.instance
+      .collection('companies')
+      .doc(companyId)
+      .collection('employee')
+      .get();
+
+  for (var doc in employeeSnapshot.docs) {
+    String employeeName = doc.get('name');
+    employeeTags.add(employeeName);
+  }
+
+  // Create a ScrollController
+  ScrollController scrollController = ScrollController();
+
   showDialog(
     context: context,
     builder: (BuildContext context) {
@@ -666,106 +667,157 @@ print(existingTags);
         builder: (context, setState) {
           return Center(
             child: Container(
-              width: MediaQuery.of(context).size.width * 0.96,
-              child: CupertinoTheme(
-                data: CupertinoThemeData(
-                  brightness: isDarkMode ? Brightness.dark : Brightness.light,
-                  primaryColor: CupertinoColors.systemBlue,
-                ),
-                child: Material(
-                  color: Colors.transparent,
-                  child: CupertinoAlertDialog(
-                    title: Text('Manage Tags', 
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                        color: colorScheme.onBackground,
-                      )
-                    ),
-                    content: Container(
-                      height: MediaQuery.of(context).size.height * 0.5,
-                      width: double.maxFinite,
-                      child: Column(
-                        children: [
-                          Expanded(
-                            child: CupertinoScrollbar(
-                              child: ListView(
-                                children: [
-                                  _buildSectionHeader('Tags', colorScheme),
-                                  ...allTags.map((tag) => _buildTagItem(
-                                    tag: tag,
-                                    isSelected: selectedTags.contains(tag),
-                                    onChanged: (value) {
-                                      setState(() {
-                                                           if (selectedTags.contains(tag)) {
-                                              // Deselect the tag if it's already selected
-                                              selectedTags.remove(tag);
-                                            } else {
-                                              // Select the tag
-                                              selectedTags.add(tag);
-                                              
-                                              // If the selected tag is an employee tag, deselect other employee tags
-                                              if (employeeTags.contains(tag)) {
-                                                selectedTags.removeWhere(
-                                                  (t) => t != tag && employeeTags.contains(t),
-                                                );
-                                              }
+              width: MediaQuery.of(context).size.width * 0.9,
+              child: Material(
+                color: Colors.transparent,
+                child: Dialog(
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  backgroundColor: colorScheme.surface,
+                  child: Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          'Manage Tags',
+                          style: TextStyle(
+                            fontSize: 22,
+                            fontWeight: FontWeight.bold,
+                            color: colorScheme.onBackground,
+                          ),
+                        ),
+                        SizedBox(height: 16),
+                        Flexible(
+                          child: Container(
+                            height: MediaQuery.of(context).size.height * 0.4,
+                            child: ListView(
+                              controller: scrollController, // Attach the ScrollController
+                              children: [
+                                _buildSectionHeader('Tags', colorScheme),
+                                ...allTags.map((tag) => _buildTagItem(
+                                      tag: tag,
+                                      isSelected: selectedTags.contains(tag),
+                                      onChanged: (value) {
+                                        setState(() {
+                                          if (selectedTags.contains(tag)) {
+                                            selectedTags.remove(tag);
+                                          } else {
+                                            selectedTags.add(tag);
+                                            if (employeeTags.contains(tag)) {
+                                              selectedTags.removeWhere(
+                                                (t) => t != tag && employeeTags.contains(t),
+                                              );
                                             }
-                                      });
-                                    },
-                                    colorScheme: colorScheme,
-                                  )).toList(),
-                                  
-                               
-                                ],
-                              ),
+                                          }
+                                        });
+                                      },
+                                      colorScheme: colorScheme,
+                                    )).toList(),
+                              ],
                             ),
                           ),
-                          SizedBox(height: 8),
-                          CupertinoTextField(
-                            placeholder: "Enter new tag",
-                            placeholderStyle: TextStyle(
+                        ),
+                        SizedBox(height: 12),
+                        TextField(
+                          decoration: InputDecoration(
+                            hintText: "Enter new tag",
+                            hintStyle: TextStyle(
                               color: colorScheme.onBackground.withOpacity(0.6),
                             ),
-                            style: TextStyle(color: colorScheme.onBackground),
-                            decoration: BoxDecoration(
-                              color: colorScheme.surface,
+                            filled: true,
+                            fillColor: colorScheme.surface,
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: BorderSide(color: colorScheme.onBackground),
+                            ),
+                          ),
+                          style: TextStyle(color: colorScheme.onBackground),
+                          onChanged: (value) {
+                            newTag = value;
+                          },
+                        ),
+                        SizedBox(height: 10),
+                        OutlinedButton(
+                          onPressed: () {
+                            if (newTag.isNotEmpty && !allTags.contains(newTag)) {
+                              setState(() {
+                                allTags.add(newTag);
+                                selectedTags.add(newTag);
+                                newTag = '';
+                                // Scroll to the bottom of the list
+                                scrollController.animateTo(
+                                  scrollController.position.maxScrollExtent,
+                                  duration: Duration(milliseconds: 300),
+                                  curve: Curves.easeOut,
+                                );
+                              });
+                            }
+                          },
+                          style: OutlinedButton.styleFrom(
+                            side: BorderSide(color: colorScheme.onBackground),
+                            shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(8),
                             ),
-                            onChanged: (value) {
-                              newTag = value;
-                            },
+                            backgroundColor: colorScheme.surface,
                           ),
-                        ],
-                      ),
+                          child: Text(
+                            'Add New Tag',
+                            style: TextStyle(
+                              color: colorScheme.onBackground,
+                            ),
+                          ),
+                        ),
+                        SizedBox(height: 10),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Expanded(
+                              child: OutlinedButton(
+                                onPressed: () => Navigator.of(context).pop(),
+                                style: OutlinedButton.styleFrom(
+                                  side: BorderSide(color: colorScheme.onBackground),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  backgroundColor: colorScheme.surface,
+                                ),
+                                child: Text(
+                                  'Cancel',
+                                  style: TextStyle(
+                                    color: colorScheme.onBackground,
+                                  ),
+                                ),
+                              ),
+                            ),
+                            SizedBox(width: 8),
+                            Expanded(
+                              child: OutlinedButton(
+                                onPressed: () {
+                                  List<String> updatedTags = [...selectedTags];
+                                  _updateConversationTags(conversation, updatedTags, conversation['phone']);
+                                  Navigator.of(context).pop();
+                                },
+                                style: OutlinedButton.styleFrom(
+                                  side: BorderSide(color: colorScheme.onBackground),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  backgroundColor: colorScheme.surface,
+                                ),
+                                child: Text(
+                                  'Save',
+                                  style: TextStyle(
+                                    color: colorScheme.onBackground,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
                     ),
-                    actions: [
-                      CupertinoDialogAction(
-                        child: Text('Cancel'),
-                        onPressed: () => Navigator.of(context).pop(),
-                      ),
-                      CupertinoDialogAction(
-                        child: Text('Add New Tag'),
-                        onPressed: () {
-                          if (newTag.isNotEmpty && !allTags.contains(newTag)) {
-                            setState(() {
-                              allTags.add(newTag);
-                              selectedTags.add(newTag);
-                              newTag = '';
-                            });
-                          }
-                        },
-                      ),
-                      CupertinoDialogAction(
-                        isDefaultAction: true,
-                        child: Text('Save'),
-                        onPressed: () {
-                          List<String> updatedTags = [...selectedTags,];
-                          _updateConversationTags(conversation, updatedTags, conversation['phone']);
-                          Navigator.of(context).pop();
-                        },
-                      ),
-                    ],
                   ),
                 ),
               ),
@@ -1120,29 +1172,29 @@ Future<void> markConversationAsRead(String chatId) async {
 
   @override
   Widget build(BuildContext context) {
-      double maxHeightPercentage = 0.30; // 40% of the screen
-double calculatedHeight = (filteredConversations().length * 0.15).clamp(0.0, maxHeightPercentage); // 5% per conversation, max 40%
-  
+    double maxHeightPercentage = 0.30; // 30% of the screen
+    double calculatedHeight = (filteredConversations().length * 0.15).clamp(0.0, maxHeightPercentage); // 15% per conversation, max 30%
+
     SystemChrome.setSystemUIOverlayStyle(SystemUiOverlayStyle(
       statusBarColor: Colors.transparent,
       statusBarIconBrightness: isDarkMode ? Brightness.light : Brightness.dark,
       statusBarBrightness: isDarkMode ? Brightness.dark : Brightness.light,
     ));
-  final colorScheme = isDarkMode
-      ? ColorScheme.dark(
-          primary: CupertinoColors.systemBackground.darkColor,
-          secondary: CupertinoColors.secondarySystemBackground.darkColor,
-          surface: CupertinoColors.secondarySystemBackground.darkColor,
-          background: CupertinoColors.systemBackground.darkColor,
-          onBackground: CupertinoColors.label.darkColor,
-        )
-      : ColorScheme.light(
-          primary: CupertinoColors.systemBackground,
-          secondary: CupertinoColors.secondarySystemBackground,
-          surface: CupertinoColors.systemBackground,
-          background: CupertinoColors.systemBackground,
-          onBackground: CupertinoColors.label,
-        );
+    final colorScheme = isDarkMode
+        ? ColorScheme.dark(
+            primary: CupertinoColors.systemBackground.darkColor,
+            secondary: CupertinoColors.secondarySystemBackground.darkColor,
+            surface: CupertinoColors.secondarySystemBackground.darkColor,
+            background: CupertinoColors.systemBackground.darkColor,
+            onBackground: CupertinoColors.label.darkColor,
+          )
+        : ColorScheme.light(
+            primary: CupertinoColors.systemBackground,
+            secondary: CupertinoColors.secondarySystemBackground,
+            surface: CupertinoColors.systemBackground,
+            background: CupertinoColors.systemBackground,
+            onBackground: CupertinoColors.label,
+          );
 
     return Theme(
       data: ThemeData(
@@ -1159,214 +1211,215 @@ double calculatedHeight = (filteredConversations().length * 0.15).clamp(0.0, max
         body: SingleChildScrollView(
           physics: NeverScrollableScrollPhysics(),
           child: Container(
-          padding: EdgeInsets.only(
+            padding: EdgeInsets.only(
               top: MediaQuery.of(context).padding.top,
-              
               left: 20,
             ),
             height: MediaQuery.of(context).size.height,
             color: colorScheme.background,
-          child: Column(
+            child: Column(
               mainAxisAlignment: MainAxisAlignment.start,
               crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
+              children: [
                 Padding(
                   padding: EdgeInsets.all(8.0),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-               CupertinoButton(
-                    padding: EdgeInsets.zero,
-                    child: Row(
-                      children: [
-                        Text(
-                          phoneNames[userPhone] ?? 'Select Phone',
-                          style: TextStyle(
-                            fontSize: 24,
-                            fontWeight: FontWeight.bold,
-                            color: colorScheme.onBackground,
-                          ),
+                      CupertinoButton(
+                        padding: EdgeInsets.zero,
+                        child: Row(
+                          children: [
+                            Text(
+                              phoneNames[userPhone] ?? 'Select Phone',
+                              style: TextStyle(
+                                fontSize: 24,
+                                fontWeight: FontWeight.bold,
+                                color: colorScheme.onBackground,
+                              ),
+                            ),
+                            Icon(
+                              CupertinoIcons.chevron_down,
+                              color: CupertinoColors.systemBlue,
+                            ),
+                          ],
                         ),
-                        Icon(
-                          CupertinoIcons.chevron_down,
-                          color: CupertinoColors.systemBlue ,
-                        ),
-                      ],
-                    ),
-                    onPressed: () {
-                      
-                                  showDialog(
-                                context: context,
-                                builder: (BuildContext context) {
-                                  return AlertDialog(
-                                    backgroundColor: colorScheme.background,
-                                    title: Text('Select Phone',
-                                        style: TextStyle(color: colorScheme.onBackground)),
-                                    content: Container(
-                                      width: double.minPositive,
-                                      child: ListView.builder(
-                                        shrinkWrap: true,
-                                        itemCount: phoneNames.length,
-                                        itemBuilder: (context, index) {
-                                          String key = phoneNames.keys.elementAt(index);
-                                          return ListTile(
-                                            title: Text(
-                                              phoneNames[key]!,
-                                              style: TextStyle(color: colorScheme.onBackground),
-                                            ),
-                                            selected: key == userPhone,
-                                            onTap: () async {
-                                              // Update Firebase first
-                                              try {
-                                                await FirebaseFirestore.instance
-                                                    .collection("user")
-                                                    .doc(email)
-                                                    .update({
-                                                  'phone': key
-                                                });
-                                                
-                                                setState(() {
-                                                  userPhone = key;
-                                                });
-                                                
-                                                Navigator.pop(context);
-                                                fetchContacts(); // Refresh contacts with new phone filter
-                                                
-                                                // Show success message
-                                                Toast.show(context, 'success', 
-                                                  'Phone switched to ${phoneNames[key]}');
-                                                  
-                                              } catch (e) {
-                                                                                                Toast.show(context, 'error', 
-                                                  'Failed to update phone. Please try again.');
-                                              }
-                                            },
-                                          );
+                        onPressed: () {
+                          showDialog(
+                            context: context,
+                            builder: (BuildContext context) {
+                              return AlertDialog(
+                                backgroundColor: colorScheme.background,
+                                title: Text('Select Phone',
+                                    style: TextStyle(color: colorScheme.onBackground)),
+                                content: Container(
+                                  width: double.minPositive,
+                                  child: ListView.builder(
+                                    shrinkWrap: true,
+                                    itemCount: phoneNames.length,
+                                    itemBuilder: (context, index) {
+                                      String key = phoneNames.keys.elementAt(index);
+                                      return ListTile(
+                                        title: Text(
+                                          phoneNames[key]!,
+                                          style: TextStyle(color: colorScheme.onBackground),
+                                        ),
+                                        selected: key == userPhone,
+                                        onTap: () async {
+                                          // Update Firebase first
+                                          try {
+                                            await FirebaseFirestore.instance
+                                                .collection("user")
+                                                .doc(email)
+                                                .update({
+                                              'phone': key
+                                            });
+
+                                            setState(() {
+                                              userPhone = key;
+                                            });
+
+                                            Navigator.pop(context);
+                                            fetchContacts(); // Refresh contacts with new phone filter
+
+                                            // Show success message
+                                            Toast.show(context, 'success', 
+                                              'Phone switched to ${phoneNames[key]}');
+
+                                          } catch (e) {
+                                            Toast.show(context, 'error', 
+                                              'Failed to update phone. Please try again.');
+                                          }
                                         },
-                                      ),
-                                    ),
-                                  );
-                                },
+                                      );
+                                    },
+                                  ),
+                                ),
                               );
-                           
-                            
-                    },
-                  ),
-                   Spacer(),
-                  Row(
-                    children: [
+                            },
+                          );
+                        },
+                      ),
+                      Spacer(),
+                      Row(
+                        children: [
                           GestureDetector(
                             onTap: () async {
                               TextEditingController numberController = TextEditingController();
                               await showDialog(
                                 context: context,
                                 builder: (BuildContext context) {
-                                  return CupertinoTheme(
-                                    data: CupertinoThemeData(
-                                      brightness: isDarkMode ? Brightness.dark : Brightness.light,
-                                      primaryColor: CupertinoColors.systemBlue,
+                                  return AlertDialog(
+                                    backgroundColor: colorScheme.surface,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(12),
                                     ),
-                                    child: CupertinoAlertDialog(
-                                      title: Text(
-                                        'Enter Number',
-                                        style: TextStyle(
-                                          fontSize: 17,
-                                          fontWeight: FontWeight.bold,
-                                          color: colorScheme.onBackground,
-                                        ),
+                                    title: Text(
+                                      'Enter Number',
+                                      style: TextStyle(
+                                        fontSize: 17,
+                                        fontWeight: FontWeight.bold,
+                                        color: colorScheme.onBackground,
                                       ),
-                                      content: Column(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          SizedBox(height: 8),
-                                          Container(
-                                            padding: EdgeInsets.symmetric(horizontal: 8),
-                                            decoration: BoxDecoration(
-                                              color: colorScheme.surface,
-                                              borderRadius: BorderRadius.circular(8),
-                                              border: Border.all(
-                                                color: colorScheme.onBackground.withOpacity(0.1),
-                                              ),
-                                            ),
-                                            child: Row(
-                                              children: [
-                                                CountryCodePicker(
-                                                  onChanged: (countryCode) {
-                                                    setState(() {
-                                                      selectedCountryCode = countryCode.dialCode!;
-                                                    });
-                                                  },
-                                                  initialSelection: 'MY', // Default to Malaysia
-                                                  favorite: ['+60', 'MY'], // Add frequently used codes
-                                                  showCountryOnly: false,
-                                                  showOnlyCountryWhenClosed: false,
-                                                  alignLeft: false,
-                                                ),
-                                                SizedBox(width: 8),
-                                                Expanded(
-                                                  child: CupertinoTextField(
-                                                    controller: numberController,
-                                                    keyboardType: TextInputType.phone,
-                                                    placeholder: 'Enter phone number',
-                                                    style: TextStyle(color: colorScheme.onBackground),
-                                                    decoration: BoxDecoration(
-                                                      color: Colors.transparent,
-                                                      border: Border.all(color: Colors.transparent),
-                                                    ),
-                                                  ),
-                                                ),
-                                              ],
+                                    ),
+                                    content: Column(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        SizedBox(height: 8),
+                                        Container(
+                                          padding: EdgeInsets.symmetric(horizontal: 8),
+                                          decoration: BoxDecoration(
+                                            color: colorScheme.surface,
+                                            borderRadius: BorderRadius.circular(8),
+                                            border: Border.all(
+                                              color: colorScheme.onBackground.withOpacity(0.1),
                                             ),
                                           ),
-                                        ],
-                                      ),
-                                      actions: [
-                                        CupertinoDialogAction(
-                                          child: Text('Cancel'),
-                                          onPressed: () => Navigator.of(context).pop(),
-                                        ),
-                                        CupertinoDialogAction(
-                                          isDefaultAction: true,
-                                          child: Text('Message'),
-                                          onPressed: () {
-                                           
-                                            String phoneNumber = numberController.text.trim();
-                                            
-                                            // Clean the phone number: remove all non-digit characters
-                                            phoneNumber = phoneNumber.replaceAll(RegExp(r'[^\d]'), '');
-                                            
-                                            // Ensure the phone number is valid
-                                            if (phoneNumber.isEmpty) {
-                                              Toast.show(context, 'error', 'Please enter a valid phone number');
-                                              return;
-                                            }
-                                            
-                                            // Format the chat ID and display number
-                                            String chatId = "${selectedCountryCode.substring(1)}$phoneNumber@c.us";
-                                            String displayNumber = "$selectedCountryCode$phoneNumber";
-                                            
-                                            Navigator.of(context).pop();
-                                            Navigator.of(context).push(
-                                              CupertinoPageRoute(
-                                                builder: (context) => MessageScreen(
-                                                  chatId: chatId,
-                                                  companyId: companyId,
-                                                  messages: [],
-                                                  conversation: {},
-                                                  whapi: whapiToken,
-                                                  name: displayNumber,
-                                                  phone: displayNumber,
-                                                  accessToken: ghl,
-                                                  location: ghl_location,
-                                                  userName: firstName,
-                                                  phoneIndex: userPhone != null ? int.parse(userPhone!) : 0,
+                                          child: Row(
+                                            children: [
+                                              CountryCodePicker(
+                                                onChanged: (countryCode) {
+                                                  setState(() {
+                                                    selectedCountryCode = countryCode.dialCode!;
+                                                  });
+                                                },
+                                                initialSelection: 'MY', // Default to Malaysia
+                                                favorite: ['+60', 'MY'], // Add frequently used codes
+                                                showCountryOnly: false,
+                                                showOnlyCountryWhenClosed: false,
+                                                alignLeft: false,
+                                              ),
+                                              SizedBox(width: 8),
+                                              Expanded(
+                                                child: TextField(
+                                                  controller: numberController,
+                                                  keyboardType: TextInputType.phone,
+                                                  decoration: InputDecoration(
+                                                    hintText: 'Enter phone number',
+                                                    border: OutlineInputBorder(
+                                                      borderRadius: BorderRadius.circular(8),
+                                                      borderSide: BorderSide(color: colorScheme.onBackground),
+                                                    ),
+                                                  ),
+                                                  style: TextStyle(color: colorScheme.onBackground),
                                                 ),
                                               ),
-                                            );
-                                          },
+                                            ],
+                                          ),
                                         ),
                                       ],
                                     ),
+                                    actions: [
+                                      OutlinedButton(
+                                        style: OutlinedButton.styleFrom(
+                                          foregroundColor: colorScheme.onBackground,
+                                          side: BorderSide(color: colorScheme.onBackground),
+                                          shape: RoundedRectangleBorder(
+                                            borderRadius: BorderRadius.circular(8),
+                                          ),
+                                        ),
+                                        child: Text('Cancel'),
+                                        onPressed: () => Navigator.of(context).pop(),
+                                      ),
+                                      OutlinedButton(
+                                        style: OutlinedButton.styleFrom(
+                                          foregroundColor: colorScheme.onBackground,
+                                          side: BorderSide(color: colorScheme.onBackground),
+                                          shape: RoundedRectangleBorder(
+                                            borderRadius: BorderRadius.circular(8),
+                                          ),
+                                        ),
+                                        child: Text('Message'),
+                                        onPressed: () {
+                                          String phoneNumber = numberController.text.trim();
+                                          phoneNumber = phoneNumber.replaceAll(RegExp(r'[^\d]'), '');
+                                          if (phoneNumber.isEmpty) {
+                                            Toast.show(context, 'error', 'Please enter a valid phone number');
+                                            return;
+                                          }
+                                          String chatId = "${selectedCountryCode.substring(1)}$phoneNumber@c.us";
+                                          String displayNumber = "$selectedCountryCode$phoneNumber";
+                                          Navigator.of(context).pop();
+                                          Navigator.of(context).push(
+                                            MaterialPageRoute(
+                                              builder: (context) => MessageScreen(
+                                                chatId: chatId,
+                                                companyId: companyId,
+                                                messages: [],
+                                                conversation: {},
+                                                whapi: whapiToken,
+                                                name: displayNumber,
+                                                phone: displayNumber,
+                                                accessToken: ghl,
+                                                location: ghl_location,
+                                                userName: firstName,
+                                                phoneIndex: userPhone != null ? int.parse(userPhone!) : 0,
+                                              ),
+                                            ),
+                                          );
+                                        },
+                                      ),
+                                    ],
                                   );
                                 },
                               );
@@ -1386,56 +1439,53 @@ double calculatedHeight = (filteredConversations().length * 0.15).clamp(0.0, max
                             },
                             child: Padding(
                               padding: const EdgeInsets.all(8.0),
-                              child: Icon(Icons.refresh,size: 30,color: colorScheme.onBackground,),
+                              child: Icon(Icons.refresh, size: 30, color: colorScheme.onBackground),
                             ),
                       ),
                       IconButton(
-                            icon: Icon(
-                              isDarkMode ? Icons.light_mode : Icons.dark_mode,
-                              color: colorScheme.onBackground,
-                            ),
+                        icon: Icon(
+                          isDarkMode ? Icons.light_mode : Icons.dark_mode,
+                          color: colorScheme.onBackground,
+                        ),
                         onPressed: toggleDarkMode,
                       ),
                     ],
                   ),
                 ],
               ),
-                ),
-                 Padding(
+            ),
+            Padding(
               padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               child: Container(
-                 decoration: BoxDecoration(
-      borderRadius: BorderRadius.circular(12),
-      boxShadow: [
-        BoxShadow(
-          color: colorScheme.onBackground.withOpacity(0.05),
-          blurRadius: 8,
-          offset: Offset(0, 2),
-        ),
-      ],
-    ),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(12),
+                  boxShadow: [
+                    BoxShadow(
+                      color: colorScheme.onBackground.withOpacity(0.05),
+                      blurRadius: 8,
+                      offset: Offset(0, 2),
+                    ),
+                  ],
+                ),
                 child: CupertinoSearchTextField(
                   controller: searchController,
                   onChanged: (value) {
                     setState(() {
-                    
                       onSearchTextChanged(value);
-                     
                     });
-                    // Debounce the search to avoid too many queries
                     if (mounted) {
-                        setState(() {
-                          _isLoading = true;
-                          _isLoading2 = true;
-                        });
-                      }
+                      setState(() {
+                        _isLoading = true;
+                        _isLoading2 = true;
+                      });
+                    }
                   },
                   style: TextStyle(color: colorScheme.onBackground),
                   placeholder: 'Search conversations and messages...',
                 ),
               ),
             ),
-           Container(
+            Container(
               height: 30,
               margin: EdgeInsets.symmetric(vertical: 8),
               child: ListView.builder(
@@ -1468,211 +1518,211 @@ double calculatedHeight = (filteredConversations().length * 0.15).clamp(0.0, max
                 },
               ),
             ),
-
-
-                Container(
-                height: MediaQuery.of(context).size.height *72/100,
-                child: RefreshIndicator(
-             
-                  onRefresh: _handleRefresh,
-                  child: _isLoading
-                ?  Center(
-                    child: CircularProgressIndicator(
-                       color: Colors.black
-                    ),
-                  )
-                      : isSearching 
+            Container(
+              height: MediaQuery.of(context).size.height * 0.72,
+              child: RefreshIndicator(
+                onRefresh: _handleRefresh,
+                child: _isLoading
+                    ? Center(
+                        child: CircularProgressIndicator(
+                          color: colorScheme.primary,
+                        ),
+                      )
+                    : isSearching
                         ? Column(
-                          mainAxisAlignment: MainAxisAlignment.start,
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            if(filteredConversations().length != 0)
-                            Text(
-                          'Contacts',
-                          style: TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
-                            color: colorScheme.onBackground,
-                          ),
-                        ),
-                       
-                            Container(
-                              height: MediaQuery.of(context).size.height * calculatedHeight,
-                              child: ListView.builder(
-                                                        padding: EdgeInsets.zero,
-                              itemCount: filteredConversations().length,
-                              itemBuilder: (context, index) {
-                                final conversation = filteredConversations()[index];
-                                return buildConversationItem(conversation, colorScheme,{});
-                              },
-                                                        ),
-                            ),
-                             Text(
-                          'Messages',
-                          style: TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
-                            color: colorScheme.onBackground,
-                          ),
-                        ),
-                           (_isLoading2) ? Center(child: CircularProgressIndicator(color: Colors.black,)) :Container(
-  height: (searchedMessages.length != 0) ? MediaQuery.of(context).size.height * 35 / 100 : 0,
-  child: ListView.builder(
-    padding: EdgeInsets.zero,
-    itemCount: searchedMessages.length,
-    itemBuilder: (context, index) {
-      final message = searchedMessages[index];
-      final conversation = message['conversation'];
+                            mainAxisAlignment: MainAxisAlignment.start,
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              if (filteredConversations().isNotEmpty)
+                                Padding(
+                                  padding: const EdgeInsets.symmetric(vertical: 8.0),
+                                  child: Text(
+                                    'Contacts',
+                                    style: TextStyle(
+                                      fontSize: 20,
+                                      fontWeight: FontWeight.bold,
+                                      color: colorScheme.onBackground,
+                                    ),
+                                  ),
+                                ),
+                              Container(
+                                height: MediaQuery.of(context).size.height * calculatedHeight,
+                                child: ListView.builder(
+                                  padding: EdgeInsets.zero,
+                                  itemCount: filteredConversations().length,
+                                  itemBuilder: (context, index) {
+                                    final conversation = filteredConversations()[index];
+                                    return buildConversationItem(conversation, colorScheme, {});
+                                  },
+                                ),
+                              ),
+                              Padding(
+                                padding: const EdgeInsets.symmetric(vertical: 8.0),
+                                child: Text(
+                                  'Messages',
+                                  style: TextStyle(
+                                    fontSize: 20,
+                                    fontWeight: FontWeight.bold,
+                                    color: colorScheme.onBackground,
+                                  ),
+                                ),
+                              ),
+                              _isLoading2
+                                  ? Center(
+                                      child: CircularProgressIndicator(
+                                        color: colorScheme.primary,
+                                      ),
+                                    )
+                                  : Container(
+                                      height: searchedMessages.isNotEmpty
+                                          ? MediaQuery.of(context).size.height * 0.35
+                                          : 0,
+                                      child: ListView.builder(
+                                        padding: EdgeInsets.zero,
+                                        itemCount: searchedMessages.length,
+                                        itemBuilder: (context, index) {
+                                          final message = searchedMessages[index];
+                                          final conversation = message['conversation'];
 
-      // Check if message or conversation is null
-      if (message == null || conversation == null) {
-        return Container(); // Return an empty container if null
-      }
+                                          if (message == null || conversation == null) {
+                                            return Container();
+                                          }
 
-      return buildConversationItem(conversation, colorScheme, message);
-    },
-  ),
-),
-                          ],
-                        )
+                                          return buildConversationItem(conversation, colorScheme, message);
+                                        },
+                                      ),
+                                    ),
+                            ],
+                          )
                         : ListView.builder(
-                          padding: EdgeInsets.zero,
+                            padding: EdgeInsets.zero,
                             itemCount: filteredConversations().length,
                             itemBuilder: (context, index) {
                               final conversation = filteredConversations()[index];
-                              return buildConversationItem(conversation, colorScheme,{});
+                              return buildConversationItem(conversation, colorScheme, {});
                             },
                           ),
-                ),
               ),
-             
+            ),            
             ],
           ),
         ),
       ),
     ));
   }
-Future<void> fetchMessagesForChat(String chatId, dynamic chat, String name, String phone, String? pic, String contactId, List<dynamic> tags, int phoneIndex) async {
-  try {
-    List<Map<String, dynamic>> messages = [];
-    if (v2) {
-      QuerySnapshot messagesSnapshot = await FirebaseFirestore.instance
-          .collection('companies')
-          .doc(companyId)
-          .collection('contacts')
-          .doc(contactId)
-          .collection('messages')
-          .orderBy('timestamp', descending: true)
-          .limit(50)
-          .get();
+  Future<void> fetchMessagesForChat(String chatId, dynamic chat, String name, String phone, String? pic, String contactId, List<dynamic> tags, int phoneIndex) async {
+    try {
+      List<Map<String, dynamic>> messages = [];
+      if (v2) {
+        QuerySnapshot messagesSnapshot = await FirebaseFirestore.instance
+            .collection('companies')
+            .doc(companyId)
+            .collection('contacts')
+            .doc(contactId)
+            .collection('messages')
+            .orderBy('timestamp', descending: true)
+            .limit(50)
+            .get();
 
-      messages = messagesSnapshot.docs
-          .map((doc) => doc.data() as Map<String, dynamic>)
-          .where((message) {
-            // Filter out unwanted message types
-            String type = message['type'] ?? '';
-            bool validType = type != 'action' && 
-                           type != 'e2e_notification' && 
-                           type != 'notification_template';
+        messages = messagesSnapshot.docs
+            .map((doc) => doc.data() as Map<String, dynamic>)
+            .where((message) {
+              String type = message['type'] ?? '';
+              bool validType = type != 'action' && 
+                            type != 'e2e_notification' && 
+                            type != 'notification_template';
 
-            // Updated phone index validation
-            bool validPhoneIndex = true;
-            if (userPhone != null) {
-          if (message['phoneIndexes'] != null && message['phoneIndexes'] is List) {
-              validPhoneIndex = message['phoneIndexes'].contains(phoneIndex);
-            } 
-            // If no phoneIndexes or not found in array, check single phoneIndex
-            else if (message['phoneIndex'] != null) {
-              validPhoneIndex = message['phoneIndex'] == phoneIndex;
-            }
-            }
+              bool validPhoneIndex = true;
+              if (userPhone != null) {
+                if (message['phoneIndexes'] != null && message['phoneIndexes'] is List) {
+                  validPhoneIndex = message['phoneIndexes'].contains(phoneIndex);
+                } 
+                else if (message['phoneIndex'] != null) {
+                  validPhoneIndex = message['phoneIndex'] == phoneIndex;
+                }
+              }
 
-            // Debug print
-            //print('Message: ${message['text']?['body']} - Type: $type, PhoneIndex: ${message['phoneIndex']}, PhoneIndexes: ${message['phoneIndexes']}, ValidPhone: $validPhoneIndex');
+              return validType && validPhoneIndex;
+            })
+            .toList();
 
-            return validType && validPhoneIndex;
-          })
-          .toList();
+        print('Initial messages count: ${messages.length}');
+      } 
 
-      // Debug print final messages
-      print('Final messages count: ${messages.length}');
-      //messages.forEach((msg) => print('Message content: ${msg['text']?['body']}, phoneIndex: ${msg['phoneIndex']}, phoneIndexes: ${msg['phoneIndexes']}'));
-    } 
+      ProgressDialog.hide(progressDialogKey);
 
-    ProgressDialog.hide(progressDialogKey);
-
-    Navigator.of(context)
-        .push(CupertinoPageRoute(builder: (context) {
-      return MessageScreen(
-        companyId: companyId,
-        contactId: contactId,
-        tags: tags,
-        chatId: chatId,
-        messages: messages,
-        conversation: chat,
-        whapi: whapiToken,
-        name: name,
-        accessToken: ghl,
-        phone: phone,
-        pic: pic,
-        location: ghl_location,
-        userName: firstName,
-        phoneIndex: phoneIndex,
-      );
-    })).then((_) {
-      fetchContacts();
-    });
-  } catch (e) {
-    print('Error in fetchMessagesForChat: $e');
-    ProgressDialog.hide(progressDialogKey);
+      Navigator.of(context)
+          .push(CupertinoPageRoute(builder: (context) {
+        return MessageScreen(
+          companyId: companyId,
+          contactId: contactId,
+          tags: tags,
+          chatId: chatId,
+          messages: messages,
+          conversation: chat,
+          whapi: whapiToken,
+          name: name,
+          accessToken: ghl,
+          phone: phone,
+          pic: pic,
+          location: ghl_location,
+          userName: firstName,
+          phoneIndex: phoneIndex,
+        );
+      })).then((_) {
+        fetchContacts();
+      });
+    } catch (e) {
+      print('Error in fetchMessagesForChat: $e');
+      ProgressDialog.hide(progressDialogKey);
+    }
   }
-}
 
-Future<dynamic> getContact(String number) async {
-  // API endpoint
-  var url = Uri.parse('https://services.leadconnectorhq.com/contacts/search/duplicate');
+  Future<dynamic> getContact(String number) async {
+    // API endpoint
+    var url = Uri.parse('https://services.leadconnectorhq.com/contacts/search/duplicate');
 
-  // Request headers
-  var headers = {
-    'Authorization': 'Bearer ${ghl}',
-    'Version': '2021-07-28',
-    'Accept': 'application/json',
-  };
+    // Request headers
+    var headers = {
+      'Authorization': 'Bearer ${ghl}',
+      'Version': '2021-07-28',
+      'Accept': 'application/json',
+    };
 
-  // Request parameters
-  var params = {
-    'locationId': ghl_location,
-    'number': number,
-  };
+    // Request parameters
+    var params = {
+      'locationId': ghl_location,
+      'number': number,
+    };
 
-  // Send GET request
-  var response = await http.get(url.replace(queryParameters: params), headers: headers);
-  // Handle response
-  if (response.statusCode == 200) {
-    // Success
-    var data = jsonDecode(response.body);
-        setState(() {
-     
-    });
-    return data['contact'];
-  } else {
-    // Error
-            return null;
+    // Send GET request
+    var response = await http.get(url.replace(queryParameters: params), headers: headers);
+    // Handle response
+    if (response.statusCode == 200) {
+      // Success
+      var data = jsonDecode(response.body);
+          setState(() {
+      
+      });
+      return data['contact'];
+    } else {
+      // Error
+              return null;
+    }
   }
-}
-Widget _buildSectionHeader(String title, ColorScheme colorScheme) {
-  return Padding(
-    padding: EdgeInsets.symmetric(vertical: 8),
-    child: Text(
-      title,
-      style: TextStyle(
-        color: colorScheme.onBackground,
-        fontSize: 16,
-        fontWeight: FontWeight.bold,
+  Widget _buildSectionHeader(String title, ColorScheme colorScheme) {
+    return Padding(
+      padding: EdgeInsets.symmetric(vertical: 8),
+      child: Text(
+        title,
+        style: TextStyle(
+          color: colorScheme.onBackground,
+          fontSize: 16,
+          fontWeight: FontWeight.bold,
+        ),
       ),
-    ),
-  );
-}
+    );
+  }
 
 Widget _buildTagItem({
   required String tag,
@@ -1722,7 +1772,7 @@ Widget _buildTagItem({
 List<Map<String, dynamic>> searchedMessages = [];
 bool isSearching = false;
 
-Widget buildConversationItem(Map<String, dynamic> conversation, ColorScheme colorScheme,Map<String, dynamic> message) {
+Widget buildConversationItem(Map<String, dynamic> conversation, ColorScheme colorScheme, Map<String, dynamic> message) {
   final pic = (conversation['profilePicUrl'] != null && conversation['profilePicUrl'] != '') ? conversation['profilePicUrl'] : null;
   final number = (conversation['phone'] != null && conversation['phone'].contains('+'))
       ? conversation['phone'].split("+")[1]
@@ -1762,181 +1812,142 @@ Widget buildConversationItem(Map<String, dynamic> conversation, ColorScheme colo
       }
       fetchMessagesForChat(conversation['chat_id'], conversation, userName, numberOnly, pic, conversation['phone'], tags, (userPhone != null) ? int.parse(userPhone!) : phoneIndex);
     },
-    child: Container(
+    child: AnimatedContainer(
+      duration: Duration(milliseconds: 300),
+      curve: Curves.easeInOut,
+      margin: EdgeInsets.symmetric(vertical: 8.0),
       decoration: BoxDecoration(
+        color: colorScheme.surface,
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: colorScheme.onPrimary,
+            color: colorScheme.onSurface.withOpacity(0.1),
             blurRadius: 8,
-            offset: Offset(0, 2),
+            offset: Offset(0, 4),
           ),
         ],
       ),
       child: Padding(
-        padding: const EdgeInsets.all(8.0),
-        child: Column(
+        padding: const EdgeInsets.all(12.0),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center, // Center items vertically
           children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.start,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Container(
-                  height: 50,
-                  width: 50,
-                  decoration: BoxDecoration(
-                    color: Color(0xFF2D3748),
-                    borderRadius: BorderRadius.circular(100),
-                    boxShadow: [
-                      BoxShadow(
-                        color: colorScheme.onBackground.withOpacity(0.1),
-                        blurRadius: 6,
-                        offset: Offset(0, 2),
-                      ),
-                    ],
+            Container(
+              height: 50,
+              width: 50,
+              decoration: BoxDecoration(
+                color: Color(0xFF2D3748),
+                borderRadius: BorderRadius.circular(25),
+                boxShadow: [
+                  BoxShadow(
+                    color: colorScheme.onBackground.withOpacity(0.15),
+                    blurRadius: 8,
+                    offset: Offset(0, 3),
                   ),
-                  child: Center(
-                    child: (conversation['profilePicUrl'] == null || conversation['profilePicUrl'].isEmpty)
-                        ? Icon(CupertinoIcons.person_fill, size: 45, color: Colors.white)
-                        : ClipOval(
-                            child: Image.network(
-                              conversation['profilePicUrl'],
-                              fit: BoxFit.cover,
-                              width: 50,
-                              height: 50,
-                              errorBuilder: (context, error, stackTrace) {
-                                return Icon(CupertinoIcons.person_fill, size: 45, color: Colors.white);
-                              },
-                            ),
-                          ),
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.start,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const SizedBox(height: 5),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Container(
-                            width: 180,
-                            child: Text(
-                              userName ?? "Webchat",
-                              maxLines: 1,
-                              style: TextStyle(
-                                color: colorScheme.onBackground,
-                                fontFamily: 'SF',
-                                fontWeight: FontWeight.w700,
-                                fontSize: 16,
-                              ),
-                            ),
-                          ),
-                          Row(
-                            children: [
-                              Text(
-                                (isSearching &&message['timestamp'] != null)
-    ? DateFormat.jm().format(DateTime.fromMillisecondsSinceEpoch(message['timestamp'] * 1000)) // Convert from seconds to milliseconds
-    : formattedDate,
-                                style: TextStyle(
-                                  color: (unread != 0 || isSearching) ? Colors.red : colorScheme.onBackground,
-                                  fontFamily: 'SF',
-                                  fontSize: 10,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
+                ],
+              ),
+              child: Center(
+                child: (conversation['profilePicUrl'] == null || conversation['profilePicUrl'].isEmpty)
+                    ? Icon(CupertinoIcons.person_fill, size: 45, color: Colors.white)
+                    : ClipOval(
+                        child: Image.network(
+                          conversation['profilePicUrl'],
+                          fit: BoxFit.cover,
+                          width: 50,
+                          height: 50,
+                          errorBuilder: (context, error, stackTrace) {
+                            return Icon(CupertinoIcons.person_fill, size: 45, color: Colors.white);
+                          },
+                        ),
                       ),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Container(
-                            height: 35,
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Container(
-                                  width: 220,
-                                  child: Text(
-                                    (isSearching && message['text'] != null) ? message['text']['body'] ?? 'No message' : latestMessage,
-                                    maxLines: 2,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: TextStyle(
-                                      color: colorScheme.onBackground,
-                                      fontFamily: 'SF',
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.w400,
-                                    ),
-                                  ),
-                                ),
-                                Row(
-                                  children: [
-                                    if (conversation['pinned'] != null && conversation['pinned'] == true)
-                                      Icon(CupertinoIcons.pin_fill, size: 16, color: colorScheme.onBackground),
-                                    if (unread != 0)
-                                      Container(
-                                        height: 15,
-                                        width: 15,
-                                        decoration: BoxDecoration(
-                                          borderRadius: BorderRadius.circular(100),
-                                          color: Colors.redAccent,
-                                        ),
-                                        child: Center(
-                                          child: Text(
-                                            unread.toString(),
-                                            style: TextStyle(color: Colors.white, fontSize: 10),
-                                          ),
-                                        ),
-                                      ),
-                                  ],
-                                ),
-                              ],
-                            ),
-                          ),
-                          if (tags.isNotEmpty)
-                            Wrap(
-                              spacing: 4.0,
-                              runSpacing: 4.0,
-                              children: tags.map<Widget>((tag) {
-                                return Container(
-                                  padding: EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                                  decoration: BoxDecoration(
-                                    boxShadow: [
-                                      BoxShadow(
-                                        color: CupertinoColors.systemBlue.withOpacity(0.2),
-                                        blurRadius: 4,
-                                        offset: Offset(0, 1),
-                                      ),
-                                    ],
-                                    color: CupertinoColors.systemBlue,
-                                    borderRadius: BorderRadius.circular(4),
-                                  ),
-                                  child: Text(
-                                    tag,
-                                    style: TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 12,
-                                    ),
-                                  ),
-                                );
-                              }).toList(),
-                            ),
-                        ],
-                      ),
-                      SizedBox(height: 5),
-                      const Divider(
-                        height: 1,
-                        color: Color.fromARGB(255, 153, 155, 158),
-                        thickness: 1,
-                      ),
-                    ],
-                  ),
-                ),
-              ],
+              ),
             ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Expanded(
+                        child: Text(
+                          userName ?? "Webchat",
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: colorScheme.onBackground,
+                            fontFamily: 'SF',
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        (isSearching && message['timestamp'] != null)
+                            ? DateFormat.jm().format(DateTime.fromMillisecondsSinceEpoch(message['timestamp'] * 1000))
+                            : formattedDate,
+                        style: TextStyle(
+                          color: (unread != 0 || isSearching) ? Colors.red : colorScheme.onBackground,
+                          fontFamily: 'SF',
+                          fontSize: 11,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    (isSearching && message['text'] != null) ? message['text']['body'] ?? 'No message' : latestMessage,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: colorScheme.onBackground,
+                      fontFamily: 'SF',
+                      fontSize: 13,
+                      fontWeight: FontWeight.w400,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  if (tags.isNotEmpty)
+                    Wrap(
+                      spacing: 4.0,
+                      runSpacing: 4.0,
+                      children: tags.map<Widget>((tag) {
+                        return Container(
+                          padding: EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: CupertinoColors.systemBlue,
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: Text(
+                            tag,
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 12,
+                            ),
+                          ),
+                        );
+                      }).toList(),
+                    ),
+                ],
+              ),
+            ),
+            if (unread != 0)
+              Container(
+                height: 16,
+                width: 16,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(50),
+                  color: Colors.redAccent,
+                ),
+                child: Center(
+                  child: Text(
+                    unread.toString(),
+                    style: TextStyle(color: Colors.white, fontSize: 11),
+                  ),
+                ),
+              ),
           ],
         ),
       ),
