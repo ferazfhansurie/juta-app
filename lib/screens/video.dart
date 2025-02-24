@@ -28,6 +28,7 @@ class _VideoMessageBubbleState extends State<VideoMessageBubble> {
   late VideoPlayerController _controller;
   bool _isInitialized = false;
   bool _isError = false;
+  double _aspectRatio = 16 / 9;
 
   @override
   void initState() {
@@ -42,6 +43,7 @@ class _VideoMessageBubbleState extends State<VideoMessageBubble> {
           setState(() {
             _isInitialized = true;
             _isError = false;
+            _aspectRatio = _controller.value.aspectRatio;
           });
         }
       }).catchError((error) {
@@ -86,69 +88,61 @@ class _VideoMessageBubbleState extends State<VideoMessageBubble> {
                   children: [
                     ClipRRect(
                       borderRadius: BorderRadius.vertical(top: Radius.circular(8.0)),
-                      child: Stack(
-                        alignment: Alignment.center,
-                        children: [
-                          if (_isInitialized)
-                            Container(
-                              width: double.infinity,
-                              height: 250,
-                              child: AspectRatio(
-                                aspectRatio: _controller.value.aspectRatio,
-                                child: VideoPlayer(_controller),
-                              ),
-                            )
-                          else if (_isError)
-                            Container(
-                              height: 250,
-                              width: double.infinity,
-                              color: Colors.grey[800],
-                              child: Center(
-                                child: Text(
-                                  'Failed to load video',
-                                  style: TextStyle(color: Colors.white),
+                      child: AspectRatio(
+                        aspectRatio: _aspectRatio, // Set the aspect ratio to 9:16
+                        child: Stack(
+                          alignment: Alignment.center,
+                          children: [
+                            if (_isInitialized)
+                              VideoPlayer(_controller)
+                            else if (_isError)
+                              Container(
+                                color: Colors.grey[800],
+                                child: Center(
+                                  child: Text(
+                                    'Failed to load video',
+                                    style: TextStyle(color: Colors.white),
+                                  ),
+                                ),
+                              )
+                            else
+                              Container(
+                                color: Colors.grey[800],
+                                child: Center(
+                                  child: CircularProgressIndicator(
+                                    color: Colors.white,
+                                  ),
                                 ),
                               ),
-                            )
-                          else
-                            Container(
-                              height: 250,
-                              width: double.infinity,
-                              color: Colors.grey[800],
-                              child: Center(
-                                child: CircularProgressIndicator(
-                                  color: Colors.white,
+                            // Play button
+                            if (!_controller.value.isPlaying && !_isError)
+                              IconButton(
+                                icon: Icon(
+                                  Icons.play_circle_fill,
+                                  size: 50,
+                                  color: Colors.white.withOpacity(0.8),
                                 ),
+                                onPressed: () {
+                                  setState(() {
+                                    _controller.play();
+                                  });
+                                },
+                              ),
+                            // Fullscreen button
+                            Positioned(
+                              top: 8,
+                              right: 8,
+                              child: IconButton(
+                                icon: Icon(
+                                  Icons.fullscreen,
+                                  color: Colors.white.withOpacity(0.8),
+                                  size: 30,
+                                ),
+                                onPressed: _openFullscreenVideo,
                               ),
                             ),
-                          // Play button
-                          if (!_controller.value.isPlaying && !_isError)
-                            IconButton(
-                              icon: Icon(
-                                Icons.play_circle_fill,
-                                size: 50,
-                                color: Colors.white.withOpacity(0.8),
-                              ),
-                              onPressed: () {
-                                setState(() {
-                                  _controller.play();
-                                });
-                              },
-                            ),
-                          // Fullscreen button
-                          Positioned(
-                            top: 8,
-                            right: 8,
-                            child: IconButton(
-                              icon: Icon(
-                                Icons.fullscreen,
-                                color: Colors.white.withOpacity(0.8),
-                                size: 30,
-                              ),
-                              onPressed: _openFullscreenVideo,
-                            ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
                     ),
                     if (widget.caption != null && widget.caption!.isNotEmpty)
@@ -218,29 +212,39 @@ class FullscreenVideoPlayer extends StatefulWidget {
 class _FullscreenVideoPlayerState extends State<FullscreenVideoPlayer> {
   late ChewieController _chewieController;
   late VideoPlayerController _videoPlayerController;
+  bool _isInitialized = false;
 
   @override
   void initState() {
     super.initState();
+    _initializeVideoPlayer();
+  }
+
+  void _initializeVideoPlayer() async {
     _videoPlayerController = VideoPlayerController.network(widget.videoUrl);
-    _chewieController = ChewieController(
-      videoPlayerController: _videoPlayerController,
-      aspectRatio: 16 / 9,
-      autoPlay: true,
-      looping: false,
-      allowFullScreen: true,
-      allowMuting: true,
-      showControls: true,
-      placeholder: Container(
-        color: Colors.black,
-      ),
-      materialProgressColors: ChewieProgressColors(
-        playedColor: Colors.blue,
-        handleColor: Colors.blue,
-        backgroundColor: Colors.grey,
-        bufferedColor: Colors.grey,
-      ),
-    );
+    await _videoPlayerController.initialize();
+
+    setState(() {
+      _chewieController = ChewieController(
+        videoPlayerController: _videoPlayerController,
+        aspectRatio: _videoPlayerController.value.aspectRatio,
+        autoPlay: true,
+        looping: false,
+        allowFullScreen: true,
+        allowMuting: true,
+        showControls: true,
+        placeholder: Container(
+          color: Colors.black,
+        ),
+        materialProgressColors: ChewieProgressColors(
+          playedColor: Colors.blue,
+          handleColor: Colors.blue,
+          backgroundColor: Colors.grey,
+          bufferedColor: Colors.grey,
+        ),
+      );
+      _isInitialized = true;
+    });
   }
 
   @override
@@ -251,9 +255,11 @@ class _FullscreenVideoPlayerState extends State<FullscreenVideoPlayer> {
         child: Stack(
           children: [
             Center(
-              child: Chewie(
-                controller: _chewieController,
-              ),
+              child: _isInitialized
+                  ? Chewie(
+                      controller: _chewieController,
+                    )
+                  : CircularProgressIndicator(),
             ),
             Positioned(
               top: 16,
@@ -272,7 +278,9 @@ class _FullscreenVideoPlayerState extends State<FullscreenVideoPlayer> {
   @override
   void dispose() {
     _videoPlayerController.dispose();
-    _chewieController.dispose();
+    if (_isInitialized) {
+      _chewieController.dispose();
+    }
     super.dispose();
   }
 }

@@ -1,0 +1,2 @@
+C:/Users/kingx/OneDrive/Documents/Work/Juta App/juta-app/android/app/.cxx/RelWithDebInfo/k596el4i/x86_64/CMakeFiles/edit_cache.dir
+C:/Users/kingx/OneDrive/Documents/Work/Juta App/juta-app/android/app/.cxx/RelWithDebInfo/k596el4i/x86_64/CMakeFiles/rebuild_cache.dir

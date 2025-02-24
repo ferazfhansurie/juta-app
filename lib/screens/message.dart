@@ -432,24 +432,35 @@ Future<dynamic> getContact(String number) async {
   }
 }
    void _showImageDialog() async {
-    final result = await FilePicker.platform.pickFiles(type: FileType.media);
-    if (result != null) {
-      setState(() {
-        pickedFile = result.files.first;
-      if (pickedFile!.extension?.toLowerCase() == 'mp4' || pickedFile!.extension?.toLowerCase() == 'mov') {
-
-          _controller?.dispose();
-          _controller = VideoPlayerController.file(File(pickedFile!.path!))
-            ..initialize().then((_) {
-              setState(() {});
-            });
-        } else {
-          _controller?.dispose();
-          _controller = null;
-        }
-      });
-    }
+  final result = await FilePicker.platform.pickFiles(type: FileType.image);
+  if (result != null) {
+    setState(() {
+      pickedFile = result.files.first;
+      // Handle image-specific logic here
+      _controller?.dispose();
+      _controller = null;
+    });
   }
+}
+
+void _showVideoDialog() async {
+  final result = await FilePicker.platform.pickFiles(type: FileType.video);
+  if (result != null) {
+    setState(() {
+      pickedFile = result.files.first;
+      if (pickedFile!.extension?.toLowerCase() == 'mp4' || pickedFile!.extension?.toLowerCase() == 'mov') {
+        _controller?.dispose();
+        _controller = VideoPlayerController.file(File(pickedFile!.path!))
+          ..initialize().then((_) {
+            setState(() {});
+          });
+      } else {
+        _controller?.dispose();
+        _controller = null;
+      }
+    });
+  }
+}
 
 Future<void> sendImageMessage(String to, PlatformFile imageFile, String caption) async {
   if (imageFile.path == null) {
@@ -1172,226 +1183,316 @@ if(message['type'] == 'location'){
               ),
             );
             break;
-case 'privateNote':
-    final messageText = message['text']['body'];
-    messageWidget = Draggable<Map<String, dynamic>>(
-      data: message,
-      axis: Axis.horizontal,
-      child: Align(
-        alignment: Alignment.centerRight,  // Center align for private notes
-        child: Container(
-          constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.8),
-          margin: EdgeInsets.symmetric(vertical: 4),
-          padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          decoration: BoxDecoration(
-            color: Colors.yellow[100],  // Light yellow background
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: Colors.yellow[300]!),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Icon(Icons.note, size: 16, color: Colors.grey[600]),
-                  SizedBox(width: 4),
-                  Text(
-                    message['from'] ?? 'Private Note',
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 12,
-                      color: Colors.grey[800],
+
+          case 'privateNote':
+              final messageText = message['text']['body'];
+              messageWidget = Draggable<Map<String, dynamic>>(
+                data: message,
+                axis: Axis.horizontal,
+                child: Align(
+                  alignment: Alignment.centerRight,  // Center align for private notes
+                  child: Container(
+                    constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.8),
+                    margin: EdgeInsets.symmetric(vertical: 4),
+                    padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: Colors.yellow[100],  // Light yellow background
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.yellow[300]!),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Icon(Icons.note, size: 16, color: Colors.grey[600]),
+                            SizedBox(width: 4),
+                            Text(
+                              message['from'] ?? 'Private Note',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 12,
+                                color: Colors.grey[800],
+                              ),
+                            ),
+                          ],
+                        ),
+                        SizedBox(height: 4),
+                        Text(
+                          messageText ?? '',
+                          style: TextStyle(color: Colors.grey[800]),
+                        ),
+                        SizedBox(height: 2),
+                        Text(
+                          formattedTime,
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: Colors.grey[600],
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                ],
-              ),
-              SizedBox(height: 4),
-              Text(
-                messageText ?? '',
-                style: TextStyle(color: Colors.grey[800]),
-              ),
-              SizedBox(height: 2),
-              Text(
-                formattedTime,
-                style: TextStyle(
-                  fontSize: 11,
-                  color: Colors.grey[600],
                 ),
-              ),
-            ],
-          ),
-        ),
-      ),
-      feedback: Material(
-        color: Colors.transparent,
-        child: Opacity(
-          opacity: 0.7,
-          child: Container(
-            constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.8),
-            padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            decoration: BoxDecoration(
-              color: Colors.yellow[100],
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: Colors.yellow[300]!),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
+                feedback: Material(
+                  color: Colors.transparent,
+                  child: Opacity(
+                    opacity: 0.7,
+                    child: Container(
+                      constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.8),
+                      padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: Colors.yellow[100],
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Colors.yellow[300]!),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Icon(Icons.note, size: 16, color: Colors.grey[600]),
+                              SizedBox(width: 4),
+                              Text(
+                                message['from'] ?? 'Private Note',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 12,
+                                  color: Colors.grey[800],
+                                ),
+                              ),
+                            ],
+                          ),
+                          SizedBox(height: 4),
+                          Text(
+                            messageText ?? '',
+                            style: TextStyle(color: Colors.grey[800]),
+                          ),
+                          SizedBox(height: 2),
+                          Text(
+                            formattedTime,
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: Colors.grey[600],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+                onDragEnd: (details) {
+                  if (details.offset.dx < -50) { // Dragged left
+                    setState(() {
+                      replyToMessage = message;
+                    });
+                  } else if (details.offset.dx > 50) { // Dragged right
+                    setState(() {
+                      replyToMessage = message;
+                    });
+                  }
+                },
+                childWhenDragging: Opacity(
+                  opacity: 0.0,
+                  child: Container(
+                    constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.8),
+                    padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: Colors.yellow[100],
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.yellow[300]!),
+                    ),
+                    child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Icon(Icons.note, size: 16, color: Colors.grey[600]),
+                            SizedBox(width: 4),
+                            Text(
+                              message['from'] ?? 'Private Note',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 12,
+                                color: Colors.grey[800],
+                              ),
+                            ),
+                          ],
+                        ),
+                        SizedBox(height: 4),
+                        Text(
+                          messageText ?? '',
+                          style: TextStyle(color: Colors.grey[800]),
+                        ),
+                        SizedBox(height: 2),
+                        Text(
+                          formattedTime,
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: Colors.grey[600],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              );
+              break;
+    
+            case 'document':
+              messageWidget = Draggable<Map<String, dynamic>>(
+                data: message,
+                child: Stack(
                   children: [
-                    Icon(Icons.note, size: 16, color: Colors.grey[600]),
-                    SizedBox(width: 4),
-                    Text(
-                      message['from'] ?? 'Private Note',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 12,
-                        color: Colors.grey[800],
+                    Container(
+                      child: GestureDetector(
+                        onTap: () => _openDocument(context, message['document']),
+                        child: Container(
+                          padding: EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: isSent ? CupertinoColors.systemBlue : colorScheme.onBackground,
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Icon(Icons.description, size: 40, color: Colors.white),
+                                  SizedBox(width: 12),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          message['document']['filename'] ?? 'Document',
+                                          style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                        if (message['document']['fileSize'] != null)
+                                          Text(
+                                            '${(message['document']['fileSize'] / 1024).toStringAsFixed(1)} KB',
+                                            style: TextStyle(fontSize: 12, color: const Color.fromARGB(255, 255, 255, 255)),
+                                          ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              if (message['document']['caption'] != null && message['document']['caption'].isNotEmpty)
+                                Padding(
+                                  padding: EdgeInsets.only(top: 8.0),
+                                  child: Text(
+                                    message['document']['caption'],
+                                    style: TextStyle(color: Colors.white, fontSize: 14),
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                    Positioned(
+                      bottom: 5,
+                      right: 15,
+                      child: Text(
+                        formattedTime,
+                        style: TextStyle(fontSize: 12, color: const Color.fromARGB(255, 255, 255, 255)),
                       ),
                     ),
                   ],
                 ),
-                SizedBox(height: 4),
-                Text(
-                  messageText ?? '',
-                  style: TextStyle(color: Colors.grey[800]),
-                ),
-                SizedBox(height: 2),
-                Text(
-                  formattedTime,
-                  style: TextStyle(
-                    fontSize: 11,
-                    color: Colors.grey[600],
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-      onDragEnd: (details) {
-        if (details.offset.dx < -50) { // Dragged left
-          setState(() {
-            replyToMessage = message;
-          });
-        } else if (details.offset.dx > 50) { // Dragged right
-          setState(() {
-            replyToMessage = message;
-          });
-        }
-      },
-      childWhenDragging: Opacity(
-        opacity: 0.0,
-        child: Container(
-          constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.8),
-          padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          decoration: BoxDecoration(
-            color: Colors.yellow[100],
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: Colors.yellow[300]!),
-          ),
-          child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Icon(Icons.note, size: 16, color: Colors.grey[600]),
-                  SizedBox(width: 4),
-                  Text(
-                    message['from'] ?? 'Private Note',
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 12,
-                      color: Colors.grey[800],
-                    ),
-                  ),
-                ],
-              ),
-              SizedBox(height: 4),
-              Text(
-                messageText ?? '',
-                style: TextStyle(color: Colors.grey[800]),
-              ),
-              SizedBox(height: 2),
-              Text(
-                formattedTime,
-                style: TextStyle(
-                  fontSize: 11,
-                  color: Colors.grey[600],
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-    break;
-    
-                    case 'document':
-                      messageWidget = Stack(
+                feedback: Material(
+                  color: Colors.transparent,
+                  child: Opacity(
+                    opacity: 0.7,
+                    child: Container(
+                      padding: EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: isSent ? CupertinoColors.systemBlue.withOpacity(0.7) : colorScheme.onBackground.withOpacity(0.7),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
                         children: [
-                          Container(
-                            
-                            child: GestureDetector(
-                              onTap: () => _openDocument(context, message['document']),
-                              child: Container(
-                                padding: EdgeInsets.all(12),
-                                decoration: BoxDecoration(
-                            color: isSent ? CupertinoColors.systemBlue : colorScheme.onBackground,
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Row(
-                                      children: [
-                                        Icon(Icons.description, size: 40, color: Colors.white),
-                                        SizedBox(width: 12),
-                                        Expanded(
-                                          child: Column(
-                                            crossAxisAlignment: CrossAxisAlignment.start,
-                                            children: [
-                                              Text(
-                                                message['document']['filename'] ?? 'Document',
-                                                style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
-                                                maxLines: 1,
-                                                overflow: TextOverflow.ellipsis,
-                                              ),
-                                              if (message['document']['fileSize'] != null)
-                                                Text(
-                                                  '${(message['document']['fileSize'] / 1024).toStringAsFixed(1)} KB',
-                                                  style: TextStyle(fontSize: 12, color: const Color.fromARGB(255, 255, 255, 255)),
-                                                ),
-                                            ],
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                    if (message['document']['caption'] != null && message['document']['caption'].isNotEmpty)
-                                      Padding(
-                                        padding: EdgeInsets.only(top: 8.0),
-                                        child: Text(
-                                          message['document']['caption'],
-                                          style: TextStyle(color: Colors.white, fontSize: 14),
-                                        ),
-                                      ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          ),
-                          Positioned(
-                            bottom: 5,
-                            right: 15,
-                            child: Text(
-                              formattedTime,
-                              style: TextStyle(fontSize: 12, color: const Color.fromARGB(255, 255, 255, 255)),
-                            ),
+                          Icon(Icons.description, size: 24, color: Colors.white),
+                          SizedBox(width: 8),
+                          Text(
+                            message['document']['filename'] ?? 'Document',
+                            style: TextStyle(color: Colors.white),
                           ),
                         ],
-                      );
-                  
-                    break;
+                      ),
+                    ),
+                  ),
+                ),
+                onDragEnd: (details) {
+                  if (details.offset.dx < -50) { // Dragged left
+                    setState(() {
+                      replyToMessage = message;
+                    });
+                  } else if (details.offset.dx > 50) { // Dragged right
+                    setState(() {
+                      replyToMessage = message;
+                    });
+                  }
+                },
+                childWhenDragging: Opacity(
+                  opacity: 0.3,
+                  child: Stack(
+                    children: [
+                      Container(
+                        child: Container(
+                          padding: EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: isSent ? CupertinoColors.systemBlue : colorScheme.onBackground,
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Icon(Icons.description, size: 40, color: Colors.white),
+                                  SizedBox(width: 12),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          message['document']['filename'] ?? 'Document',
+                                          style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                        if (message['document']['fileSize'] != null)
+                                          Text(
+                                            '${(message['document']['fileSize'] / 1024).toStringAsFixed(1)} KB',
+                                            style: TextStyle(fontSize: 12, color: const Color.fromARGB(255, 255, 255, 255)),
+                                          ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      Positioned(
+                        bottom: 5,
+                        right: 15,
+                        child: Text(
+                          formattedTime,
+                          style: TextStyle(fontSize: 12, color: const Color.fromARGB(255, 255, 255, 255)),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            break;
 
           case 'image':
             if (message['image']['data'] != null) {
@@ -1401,7 +1502,7 @@ case 'privateNote':
                       width: MediaQuery.of(context).size.width * 70 / 100,
                       padding: EdgeInsets.symmetric(horizontal: 5),
                   decoration: BoxDecoration(
-         color: isSent ? CupertinoColors.systemBlue : colorScheme.onBackground,
+                    color: isSent ? CupertinoColors.systemBlue : colorScheme.onBackground,
                     borderRadius: BorderRadius.circular(8.0),
                   ),
                   margin: const EdgeInsets.symmetric(horizontal: 8.0),
@@ -1438,20 +1539,18 @@ case 'privateNote':
                               },
                             ),
                           ),
-if (message['image']['caption'] != null && message['image']['caption'].isNotEmpty)
-  Padding(
-    padding: EdgeInsets.only(top: 5, left: 8, right: 8, bottom: 20),
-    child: Text(
-      message['image']['caption'],
-      style: TextStyle(
-        color: Colors.white,
-        fontSize: 15.0,
-        fontFamily: 'SF',
-      ),
-    ),
-  ),
-
-// ... existing code ...
+                          if (message['image']['caption'] != null && message['image']['caption'].isNotEmpty)
+                            Padding(
+                              padding: EdgeInsets.only(top: 5, left: 8, right: 8, bottom: 20),
+                              child: Text(
+                                message['image']['caption'],
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 15.0,
+                                  fontFamily: 'SF',
+                                ),
+                              ),
+                            ),
                         ],
                       ),
                       Positioned(
@@ -1547,104 +1646,105 @@ if (message['image']['caption'] != null && message['image']['caption'].isNotEmpt
             }
             break;
 
-case 'ptt':
-  messageWidget = GestureDetector(
-    onTap: () async {
-      try {
-        if (message['ptt']['data'] != null) {
-          setState(() {
-            _isPlaying = !_isPlaying;
-          });
-          
-          if (_isPlaying) {
-            final audioData = base64Decode(message['ptt']['data']);
-            final tempDir = await getTemporaryDirectory();
-            final tempFile = File('${tempDir.path}/temp_audio.mp3');
+          case 'ptt':
+            messageWidget = GestureDetector(
+              onTap: () async {
+                try {
+                  if (message['ptt']['data'] != null) {
+                    setState(() {
+                      _isPlaying = !_isPlaying;
+                    });
+                    
+                    if (_isPlaying) {
+                      final audioData = base64Decode(message['ptt']['data']);
+                      final tempDir = await getTemporaryDirectory();
+                      final tempFile = File('${tempDir.path}/temp_audio.mp3');
+                      
+                      await tempFile.writeAsBytes(audioData);
+                      
+                      // Use just_audio to play the file
+                      await _audioPlayer.setFilePath(tempFile.path);
+                      await _audioPlayer.play();
+                    } else {
+                      await _audioPlayer.pause();
+                    }
+                  }
+                } catch (e) {
+                  print('Error playing audio: $e');
+                  showToast('Error playing audio message');
+                  setState(() {
+                    _isPlaying = false;
+                  });
+                }
+              },
+              child: Stack(
+                children: [
+                    
+                  Container(
+                    padding: EdgeInsets.symmetric(horizontal: 8.0, vertical: 6.0),
+                    margin: EdgeInsets.symmetric(vertical: 4.0, horizontal: 8.0),
             
-            await tempFile.writeAsBytes(audioData);
-            
-            // Use just_audio to play the file
-            await _audioPlayer.setFilePath(tempFile.path);
-            await _audioPlayer.play();
-          } else {
-            await _audioPlayer.pause();
-          }
-        }
-      } catch (e) {
-        print('Error playing audio: $e');
-        showToast('Error playing audio message');
-        setState(() {
-          _isPlaying = false;
-        });
-      }
-    },
-    child: Stack(
-      children: [
-           
-        Container(
-          padding: EdgeInsets.symmetric(horizontal: 8.0, vertical: 6.0),
-          margin: EdgeInsets.symmetric(vertical: 4.0, horizontal: 8.0),
-   
-              alignment: isSent ? Alignment.centerRight : Alignment.centerLeft,
-          decoration: BoxDecoration(
-            color: isSent ? CupertinoColors.systemBlue : colorScheme.onBackground,
-            borderRadius: BorderRadius.circular(8.0),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 35,
-                height: 35,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: Colors.white.withOpacity(0.2),
-                ),
-                child: Icon(
-                  _isPlaying ? Icons.pause : Icons.play_arrow,
-                  color: Colors.white,
-                  size: 20,
-                ),
-              ),
-              SizedBox(width: 8.0),
-              Container(
-                width: 120,
-                height: 25,
-                child: CustomPaint(
-                  painter: WaveformPainter(
-                    progress: _duration.inMilliseconds > 0 
-                      ? _position.inMilliseconds / _duration.inMilliseconds 
-                      : 0,
-                    waveColor: Colors.white.withOpacity(0.3),
-                    progressColor: Colors.white,
-                  ),
-                ),
-              ),
-              SizedBox(width: 8.0),
-              Text(
-                _formatDuration(_position),
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 11,
-                  fontFamily: 'SF',
-                ),
-              ),
-            
-            ],
-          ),
-        ),
-          Positioned(
-                            bottom:5,
-                            right: 15,
-                            child: Text(
-                              formattedTime,
-                              style: TextStyle(fontSize: 12, color: const Color.fromARGB(255, 255, 255, 255)),
+                        alignment: isSent ? Alignment.centerRight : Alignment.centerLeft,
+                    decoration: BoxDecoration(
+                      color: isSent ? CupertinoColors.systemBlue : colorScheme.onBackground,
+                      borderRadius: BorderRadius.circular(8.0),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          width: 35,
+                          height: 35,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: Colors.white.withOpacity(0.2),
+                          ),
+                          child: Icon(
+                            _isPlaying ? Icons.pause : Icons.play_arrow,
+                            color: Colors.white,
+                            size: 20,
+                          ),
+                        ),
+                        SizedBox(width: 8.0),
+                        Container(
+                          width: 120,
+                          height: 25,
+                          child: CustomPaint(
+                            painter: WaveformPainter(
+                              progress: _duration.inMilliseconds > 0 
+                                ? _position.inMilliseconds / _duration.inMilliseconds 
+                                : 0,
+                              waveColor: Colors.white.withOpacity(0.3),
+                              progressColor: Colors.white,
                             ),
                           ),
-      ],
-    ),
-  );
-  break;
+                        ),
+                        SizedBox(width: 8.0),
+                        Text(
+                          _formatDuration(_position),
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 11,
+                            fontFamily: 'SF',
+                          ),
+                        ),
+                      
+                      ],
+                    ),
+                  ),
+                    Positioned(
+                      bottom:5,
+                      right: 15,
+                      child: Text(
+                        formattedTime,
+                        style: TextStyle(fontSize: 12, color: const Color.fromARGB(255, 255, 255, 255)),
+                      ),
+                    ),
+                ],
+              ),
+            );
+            break;
+
           case 'poll':
             final messageText = message['poll']['title'];
             messageWidget = Align(
@@ -1659,6 +1759,7 @@ case 'ptt':
               ),
             );
             break;
+
           case 'location':
             messageWidget = Align(
               alignment: isSent ? Alignment.centerRight : Alignment.centerLeft,
@@ -1717,50 +1818,51 @@ case 'ptt':
               ),
             );
             break;
-            case 'call_log':
-              messageWidget = Align(
-                alignment: isSent ? Alignment.centerRight : Alignment.centerLeft,
-                child: Container(
-                  padding: EdgeInsets.all(8),
-                  margin: const EdgeInsets.symmetric(horizontal: 8.0),
-                  decoration: BoxDecoration(
-                    color: isSent ? CupertinoColors.systemBlue : colorScheme.onBackground,
-                    borderRadius: BorderRadius.circular(8.0),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(Icons.call, color: CupertinoColors.systemRed),
-                          SizedBox(width: 8),
-                          Text(
-                            "Called",
-                            style: TextStyle(
-                              color: CupertinoColors.white,
-                              fontSize: 17,
-                              fontFamily: 'SF',
-                              fontWeight: FontWeight.bold
-                            )
-                          ),
-                        ],
-                      ),
-                      SizedBox(height: 4),
-                      Text(
-                        formattedTime,
-                        style: TextStyle(
-                          fontSize: 9.0,
-                          color: isSent ? Colors.white : colorScheme.background,
-                          fontFamily: 'SF',
-                        ),
-                      ),
-                    ],
-                  ),
+
+          case 'call_log':
+            messageWidget = Align(
+              alignment: isSent ? Alignment.centerRight : Alignment.centerLeft,
+              child: Container(
+                padding: EdgeInsets.all(8),
+                margin: const EdgeInsets.symmetric(horizontal: 8.0),
+                decoration: BoxDecoration(
+                  color: isSent ? CupertinoColors.systemBlue : colorScheme.onBackground,
+                  borderRadius: BorderRadius.circular(8.0),
                 ),
-              );
-              break;
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.call, color: CupertinoColors.systemRed),
+                        SizedBox(width: 8),
+                        Text(
+                          "Called",
+                          style: TextStyle(
+                            color: CupertinoColors.white,
+                            fontSize: 17,
+                            fontFamily: 'SF',
+                            fontWeight: FontWeight.bold
+                          )
+                        ),
+                      ],
+                    ),
+                    SizedBox(height: 4),
+                    Text(
+                      formattedTime,
+                      style: TextStyle(
+                        fontSize: 9.0,
+                        color: isSent ? Colors.white : colorScheme.background,
+                        fontFamily: 'SF',
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+            break;
 
           default:
             // Handle unknown message types as text
@@ -1770,7 +1872,6 @@ case 'ptt':
               child: _buildMessageBubble(isSent, messageText, [], formattedTime, colorScheme, message),
             );
         }
-
         // Add the message widget to the list
         messageWidgets.add(messageWidget);
       }
@@ -1958,7 +2059,7 @@ Stack(
                 ),
                  IconButton(
                   icon: const Icon(Icons.video_camera_back),
-                  onPressed: _showImageDialog,
+                  onPressed: _showVideoDialog,
                   color: colorScheme.onBackground,
                 ),
                 Expanded(

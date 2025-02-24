@@ -150,6 +150,7 @@ Future<List> getLocationTags() async {
   }
 }
 Future<void> toggleTagSelection(String tag) async {
+  print('Toggling tag: $tag');
   setState(()  {
     if (selectedTags.contains(tag)) {
       selectedTags.remove(tag);
@@ -172,31 +173,31 @@ Future<void> toggleTagSelection(String tag) async {
 }
 Future<void> fetchConfigurations(bool refresh) async {
   email = user!.email!;
- String userPhoneCount = '';
-   String phoneCount = '';
+  String userPhoneCount = '';
+  String phoneCount = '';
   await FirebaseFirestore.instance
       .collection("user")
       .doc(email)
       .get()
       .then((snapshot) {
-    if (snapshot.exists) {
-      setState(() {
-        firstName = snapshot.get("name") ?? "Default Name";
-        company = snapshot.get("company") ?? "Default Company";
-        companyId = snapshot.get("companyId") ?? "Default CompanyId";
-        role = snapshot.get("role") ?? "Default CompanyId"; 
-        if(snapshot.data()!.containsKey("phone")){    
-        userPhone = snapshot.get("phone")?.toString()??''; // Add this line
+        if (snapshot.exists) {
+          setState(() {
+            firstName = snapshot.get("name") ?? "Default Name";
+            company = snapshot.get("company") ?? "Default Company";
+            companyId = snapshot.get("companyId") ?? "Default CompanyId";
+            role = snapshot.get("role") ?? "Default CompanyId"; 
+            if(snapshot.data()!.containsKey("phone")){    
+            userPhone = snapshot.get("phone")?.toString()??''; // Add this line
+            }
+          
+            if(snapshot.data()!.containsKey("phoneCount")){
+            userPhoneCount = snapshot.get("phoneCount")?.toString()??''; // Add this line
+            }
+            
+          });
+    
+        } else {
         }
-       
-        if(snapshot.data()!.containsKey("phoneCount")){
-        userPhoneCount = snapshot.get("phoneCount")?.toString()??''; // Add this line
-        }
-        
-      });
- 
-    } else {
-          }
   }).then((value) {
     if (companyId != null && companyId.isNotEmpty) {
             FirebaseFirestore.instance
@@ -204,68 +205,66 @@ Future<void> fetchConfigurations(bool refresh) async {
           .doc(companyId)
           .get()
           .then((snapshot) async {
-        if (snapshot.exists) {
-                       if (mounted) {
-               setState(() {
-                 var automationData = snapshot.data() as Map<String, dynamic>;
-                   if(automationData.containsKey('v2')) {
+            if (snapshot.exists) {
+              if (mounted) {
+                setState(() {
+                  var automationData = snapshot.data() as Map<String, dynamic>;
+                  if(automationData.containsKey('v2')) {
                     v2 = snapshot.get("v2");
                   }
+
                   if(automationData.containsKey('phoneCount')){
-                     phoneCount = snapshot.get("phoneCount");
-                              int phoneCountInt = int.parse(phoneCount);
-                  phoneNames.clear(); // Clear existing phone names
-                  for (int i = 0; i < phoneCountInt; i++) { // Changed from <= to <
-                    String phoneKey = 'phone${i+1}';
-                    if (automationData.containsKey(phoneKey)) {
-                      String phoneName = snapshot.get(phoneKey) ?? '';
-                      if (phoneName.isNotEmpty) {
-                        phoneNames[i.toString()] = phoneName;
+                    phoneCount = snapshot.get("phoneCount");
+                    int phoneCountInt = int.parse(phoneCount);
+                    phoneNames.clear(); // Clear existing phone names
+                    for (int i = 0; i < phoneCountInt; i++) { // Changed from <= to <
+                      String phoneKey = 'phone${i+1}';
+                      if (automationData.containsKey(phoneKey)) {
+                        String phoneName = snapshot.get(phoneKey) ?? '';
+                        if (phoneName.isNotEmpty) {
+                          phoneNames[i.toString()] = phoneName;
+                        }
                       }
-                    }
+                    }          
                   }
-                            
-                  }
-                  
+
                   if (automationData.containsKey('ghl_accessToken')){
-      ghl = snapshot.get("ghl_accessToken");
-                }    if (automationData.containsKey('ghl_refreshToken')){
-      refresh_token = snapshot.get("ghl_refreshToken");
-                }
-                  if (automationData.containsKey('ghl_location')){
-      ghl_location = snapshot.get("ghl_location");
-                }
-               if(automationData.containsKey('whapiToken')) {
-                 whapiToken= snapshot.get("whapiToken");
-               }
-           
-           
-          });
-               String topic = '';
-               if(companyId == '0123'){
-          String sanitizedEmail = email.replaceAll('@', '_at_').replaceAll('.', '_dot_');
-        topic = 'user_${sanitizedEmail}';
-               }
-      else if(userPhone != null && phoneCount != '' && phoneCount != "0" && userPhone!.isNotEmpty){
-        topic = '${companyId}_phone_${userPhone}';
-      } else {
-        topic = companyId;
-      }
-            // Modify subscription logic based on phone presence
-          FirebaseMessaging.instance.subscribeToTopic(topic);
-          print(topic);
-                  await getLocationTags();
-                  await fetchEmployeeNames();
-                    await fetchContacts();
-             }
-;
-        } else {
+                    ghl = snapshot.get("ghl_accessToken");
                   }
-      });
+                  if (automationData.containsKey('ghl_refreshToken')){
+                    refresh_token = snapshot.get("ghl_refreshToken");
+                  }
+                  if (automationData.containsKey('ghl_location')){
+                    ghl_location = snapshot.get("ghl_location");
+                  }
+                  if(automationData.containsKey('whapiToken')) {
+                    whapiToken= snapshot.get("whapiToken");
+                  }
+                });
+                String topic = '';
+                if(companyId == '0123'){
+                  String sanitizedEmail = email.replaceAll('@', '_at_').replaceAll('.', '_dot_');
+                  topic = 'user_${sanitizedEmail}';
+                }else if(userPhone != null && phoneCount != '' && phoneCount != "0" && userPhone!.isNotEmpty){
+                  topic = '${companyId}_phone_${userPhone}';
+                } else {
+                  topic = companyId;
+                }
+            
+                // Modify subscription logic based on phone presence
+                FirebaseMessaging.instance.subscribeToTopic(topic);
+                print(topic);
+                await getLocationTags();
+                await fetchEmployeeNames();
+                await fetchContacts();
+              }
+            } else {
+            }
+          });
     } else {
-          }
+    }
   });
-  }
+}
 Map<String, dynamic> getLatestMessageDetails(Map<String, dynamic> conversation) {
   String latestMessage = 'No message';
   DateTime latestTimestamp = DateTime.fromMillisecondsSinceEpoch(0);
@@ -299,7 +298,6 @@ Future<void> fetchContacts() async {
       final companyDocRef = FirebaseFirestore.instance.collection("companies").doc(companyId);
     final contactsSnapshot = await companyDocRef.collection("contacts")
         .orderBy('last_message.timestamp', descending: true)
-        .limit(100 * currentPage)
         .get();
       var contacts = contactsSnapshot.docs.map((doc) => doc.data()).toList();
 
@@ -1111,7 +1109,8 @@ Future<void> _handleRefresh() async {
     _isLoading = true;
     conversations.clear();
   });
-await fetchContacts();
+  print('Refreshing...');
+  await fetchContacts();
 }
 @override
 void initState() {
@@ -1132,6 +1131,7 @@ void _scrollListener() async {
         _isLoadingMore = true;
       });
       currentPage++;
+      print('Loading more contacts... page: $currentPage');
       await fetchMoreContacts();
       setState(() {
         _isLoadingMore = false;
